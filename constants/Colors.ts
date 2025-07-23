@@ -1,25 +1,40 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+const tintColorLight = '#1B4D8C'; // Azul institucional del MinCultura Panamá
+const tintColorDark = '#4A90D9';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
-export const Colors = {
+export default {
   light: {
     text: '#11181C',
-    background: '#fff',
+    background: '#FFFFFF',
+    surface: '#F8F9FA',
+    card: '#FFFFFF',
     tint: tintColorLight,
-    icon: '#687076',
+    primary: tintColorLight,
+    secondary: '#D4AF37', // Dorado cultural
+    accent: '#8B5A3C', // Terracota
+    success: '#28A745',
+    warning: '#FFC107',
+    error: '#DC3545',
+    greyLight: '#E9ECEF',
+    greyMedium: '#6C757D',
+    greyDark: '#495057',
     tabIconDefault: '#687076',
     tabIconSelected: tintColorLight,
   },
   dark: {
     text: '#ECEDEE',
-    background: '#151718',
+    background: '#0F1419',
+    surface: '#1A1F24',
+    card: '#252A30',
     tint: tintColorDark,
-    icon: '#9BA1A6',
+    primary: tintColorDark,
+    secondary: '#F4D03F', // Dorado más brillante para modo oscuro
+    accent: '#CD853F', // Terracota más claro
+    success: '#32CD32',
+    warning: '#FFD700',
+    error: '#FF6B6B',
+    greyLight: '#3A3F47',
+    greyMedium: '#8E9297',
+    greyDark: '#C7C9CC',
     tabIconDefault: '#9BA1A6',
     tabIconSelected: tintColorDark,
   },
