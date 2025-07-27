@@ -76,10 +76,7 @@ export default function AppActivityIndicator({
       { backgroundColor: colors.background }
     ]}>
       <LinearGradient
-        colors={colorScheme === 'dark' 
-          ? ['rgba(74, 144, 217, 0.1)', 'rgba(27, 77, 140, 0.1)']
-          : ['rgba(27, 77, 140, 0.1)', 'rgba(74, 144, 217, 0.1)']
-        }
+        colors={['rgba(27, 77, 140, 0.1)', 'rgba(74, 144, 217, 0.1)']}
         style={styles.gradientBackground}
       />
       

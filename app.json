@@ -1,26 +1,18 @@
 {
   "expo": {
-    "name": "MinCultura Check",
-    "slug": "mincultura-asistencia",
+    "name": "MiCultura Planner",
+    "slug": "micultura-planner",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/ios/AppIcon~ios-marketing.png",
-    "scheme": "minculturaasistencia",
+    "scheme": "micultura-planner",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/icon-light.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1B4D8C"
-    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "gov.mincultura.asistencia",
+      "bundleIdentifier": "gov.micultura.planner",
       "infoPlist": {
-        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para el reconocimiento facial en eventos del Ministerio de Cultura.",
-        "NSLocationWhenInUseUsageDescription": "Esta aplicación necesita acceso a tu ubicación para verificar que estés en el evento del Ministerio de Cultura.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Permitir que la app use tu ubicación para verificar asistencia en eventos.",
-        "NSLocationAlwaysUsageDescription": "Permitir que la app use tu ubicación para verificar asistencia en eventos."
+        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para el reconocimiento facial en eventos del Ministerio de Cultura."
       }
     },
     "android": {
@@ -28,17 +20,13 @@
         "foregroundImage": "./assets/images/android/play_store_512.png",
         "backgroundColor": "#1B4D8C"
       },
-      "package": "gov.mincultura.asistencia",
+      "package": "gov.micultura.planner",
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.FOREGROUND_SERVICE"
+        "android.permission.CAMERA"
       ]
     },
     "plugins": [
       "expo-router",
-      "expo-location",
       "expo-web-browser"
     ],
     "experiments": {
@@ -47,9 +35,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "new-project-id-here"
+        "projectId": "a820d240-9fa1-44d3-bfc8-5d0476fa8828"
       }
     },
-    "owner": "mincultura"
+    "owner": "ghxstloner"
   }
 }

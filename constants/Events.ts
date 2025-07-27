@@ -70,7 +70,7 @@ export interface CulturalEvent {
   export const EVENT_CATEGORIES = {
     teatro: { label: 'Teatro', icon: 'library', color: '#8B5A3C' }, // Cambiar de 'theater-masks'
     musica: { label: 'Música', icon: 'musical-notes', color: '#1B4D8C' },
-    danza: { label: 'Danza', icon: 'body', color: '#D4AF37' },
+    danza: { label: 'Danza', icon: 'body', color: '#d21033' },
     artes_visuales: { label: 'Artes Visuales', icon: 'brush', color: '#FF6B6B' }, // Cambiar de 'palette'
     literatura: { label: 'Literatura', icon: 'book', color: '#32CD32' },
     cine: { label: 'Cine', icon: 'videocam', color: '#9C27B0' },

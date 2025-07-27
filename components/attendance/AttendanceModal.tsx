@@ -74,13 +74,9 @@ export default function AttendanceModal({ visible, message, type, onDismiss }: A
 
   const getGradientColors = (): readonly [string, string, ...string[]] => {
     if (type === 'success') {
-      return colorScheme === 'dark' 
-        ? ['rgba(40, 167, 69, 0.9)', 'rgba(25, 135, 84, 0.9)'] as const
-        : ['rgba(40, 167, 69, 0.95)', 'rgba(25, 135, 84, 0.95)'] as const;
+      return ['rgba(40, 167, 69, 0.95)', 'rgba(25, 135, 84, 0.95)'] as const;
     } else {
-      return colorScheme === 'dark'
-        ? ['rgba(220, 53, 69, 0.9)', 'rgba(176, 42, 55, 0.9)'] as const
-        : ['rgba(220, 53, 69, 0.95)', 'rgba(176, 42, 55, 0.95)'] as const;
+      return ['rgba(220, 53, 69, 0.95)', 'rgba(176, 42, 55, 0.95)'] as const;
     }
   };
 

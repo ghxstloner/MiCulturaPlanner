@@ -1,33 +1,33 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { Href, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Dimensions,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View
+  Alert,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { Button, TextInput } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import CulturalHeader from '../../components/common/CulturalHeader';
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { useAuthStore } from '../../store/authStore';
-
-const { height } = Dimensions.get('window');
+import { useEventsStore } from '../../store/eventsStore';
 
 export default function LoginScreen() {
-  const [cedula, setCedula] = useState('');
-  const [pin, setPin] = useState('');
-  const login = useAuthStore(state => state.login);
+  const [login, setLogin] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const loginAction = useAuthStore(state => state.login);
   const loading = useAuthStore(state => state.loading);
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
@@ -38,6 +38,8 @@ export default function LoginScreen() {
   const formOpacity = useRef(new Animated.Value(0)).current;
   const formTranslate = useRef(new Animated.Value(30)).current;
   const buttonScale = useRef(new Animated.Value(0.95)).current;
+
+  const loadEvents = useEventsStore(state => state.loadEvents);
 
   useEffect(() => {
     Animated.sequence([
@@ -93,152 +95,173 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     animateButtonPress();
     
-    if (!cedula.trim() || !pin.trim()) {
+    if (!login.trim() || !password.trim()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', 'Por favor complete todos los campos');
       return;
     }
 
-    const success = await login(cedula, pin);
-    
-    if (success) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace('/(app)' as Href);
-    } else {
+    try {
+      const success = await loginAction(login, password);
+      
+      if (success) {
+        await loadEvents();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace('/(app)' as Href);
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert('Error', 'Usuario o contraseña incorrectos');
+      }
+    } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', 'Cédula o PIN incorrecto');
+      console.error('Error en login:', error);
+      Alert.alert(
+        'Error de Conexión', 
+        'No se pudo conectar al servidor. Verifique su conexión a internet e intente nuevamente.'
+      );
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.mainContainer}
-    >
-      <LinearGradient
-        colors={colorScheme === 'dark' 
-          ? ['#0F1419', '#1A1F24', '#252A30']
-          : ['#F8F9FA', '#FFFFFF', '#F0F0F0']
-        }
-        style={StyleSheet.absoluteFillObject}
-      />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      <StatusBar style="dark" backgroundColor={colors.background} />
       
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      
-      <ScrollView 
-        contentContainerStyle={styles.scrollViewContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.mainContainer}
       >
-        <View style={styles.container}>
-          <Animated.View style={[
-            styles.headerContainer,
-            { 
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}>
-            <CulturalHeader />
-          </Animated.View>
+        <ScrollView 
+          contentContainerStyle={styles.scrollViewContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.container}>
+            {/* Logo Section */}
+            <Animated.View style={[
+              styles.logoContainer,
+              { 
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}>
+              <View style={styles.logoWrapper}>
+                <Image
+                  source={require('../../assets/logo-principal.png')}
+                  style={styles.logo}
+                  contentFit="contain"
+                />
+              </View>
+              <Text style={[styles.appTitle, { color: colors.primary }]}>
+                MiCultura
+              </Text>
+              <Text style={[styles.appSubtitle, { color: colors.textSecondary }]}>
+                Sistema de Asistencia Digital
+              </Text>
+            </Animated.View>
 
-          <Animated.View style={[
-            styles.formContainer,
-            { 
-              opacity: formOpacity,
-              transform: [{ translateY: formTranslate }]
-            }
-          ]}>
-            <View style={[styles.card, { backgroundColor: colors.surface }]}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="person-circle" size={48} color={colors.primary} />
-                <Text style={[styles.cardTitle, { color: colors.primary }]}>
+            {/* Form Section */}
+            <Animated.View style={[
+              styles.formContainer,
+              { 
+                opacity: formOpacity,
+                transform: [{ translateY: formTranslate }]
+              }
+            ]}>
+              <View style={[styles.formCard, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.formTitle, { color: colors.text }]}>
                   Iniciar Sesión
                 </Text>
-                <Text style={[styles.cardSubtitle, { color: colors.greyMedium }]}>
-                  Ingresa tus credenciales para acceder
-                </Text>
-              </View>
-              
-              <View style={styles.formFields}>
-                <TextInput
-                  label="Cédula"
-                  value={cedula}
-                  placeholder="Ej: 8-123-456"
-                  onChangeText={setCedula}
-                  style={styles.input}
-                  mode="outlined"
-                  left={<TextInput.Icon icon="card-account-details" />}
-                  theme={{ 
-                    colors: { 
-                      primary: colors.primary,
-                      background: colors.surface 
-                    } 
-                  }}
-                />
+                
+                <View style={styles.inputContainer}>
+                  <View style={[styles.inputWrapper, { 
+                    borderColor: colors.border,
+                    backgroundColor: colors.background
+                  }]}>
+                    <Ionicons name="person-outline" size={20} color={colors.greyMedium} style={styles.inputIcon} />
+                    <TextInput
+                      value={login}
+                      placeholder="Usuario"
+                      placeholderTextColor={colors.greyMedium}
+                      onChangeText={setLogin}
+                      style={[styles.textInput, { color: colors.text }]}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
 
-                <TextInput
-                  label="PIN"
-                  value={pin}
-                  placeholder="Ingresa tu PIN"
-                  secureTextEntry
-                  keyboardType="numeric"
-                  onChangeText={setPin}
-                  style={styles.input}
-                  mode="outlined"
-                  left={<TextInput.Icon icon="lock" />}
-                  theme={{ 
-                    colors: { 
-                      primary: colors.primary,
-                      background: colors.surface 
-                    } 
-                  }}
-                />
+                  <View style={[styles.inputWrapper, { 
+                    borderColor: colors.border,
+                    backgroundColor: colors.background
+                  }]}>
+                    <Ionicons name="lock-closed-outline" size={20} color={colors.greyMedium} style={styles.inputIcon} />
+                    <TextInput
+                      value={password}
+                      placeholder="Contraseña"
+                      placeholderTextColor={colors.greyMedium}
+                      secureTextEntry={!showPassword}
+                      onChangeText={setPassword}
+                      style={[styles.textInput, { color: colors.text }]}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      onSubmitEditing={handleLogin}
+                      returnKeyType="done"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      style={styles.eyeButton}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons 
+                        name={showPassword ? "eye-off-outline" : "eye-outline"} 
+                        size={20} 
+                        color={colors.greyMedium} 
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
 
                 <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
-                  <Button
-                    mode="contained"
-                    loading={loading}
-                    disabled={loading}
+                  <TouchableOpacity
                     onPress={handleLogin}
-                    style={styles.button}
-                    contentStyle={styles.buttonContent}
-                    buttonColor={colors.primary}
-                    textColor="#FFFFFF"
-                    icon="login"
+                    disabled={loading}
+                    style={[
+                      styles.loginButton, 
+                      { 
+                        backgroundColor: colors.accent,
+                        opacity: loading ? 0.7 : 1 
+                      }
+                    ]}
+                    activeOpacity={0.8}
                   >
-                    Ingresar
-                  </Button>
+                    {loading ? (
+                      <View style={styles.loadingContainer}>
+                        <Text style={styles.buttonText}>Conectando...</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.buttonContent}>
+                        <Text style={styles.buttonText}>Iniciar Sesión</Text>
+                        <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
                 </Animated.View>
               </View>
 
-              <View style={styles.helpSection}>
-                <Text style={[styles.helpText, { color: colors.greyMedium }]}>
-                  ¿Necesitas ayuda? Contacta al administrador del sistema
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.infoCard}>
-              <Text style={[styles.infoTitle, { color: colors.primary }]}>
-                Usuarios de Prueba:
+              <Text style={[styles.footerText, { color: colors.greyMedium }]}>
+                Ministerio de Cultura • República de Panamá
               </Text>
-              <Text style={[styles.infoText, { color: colors.text }]}>
-                • Cédula: 8-123-456 | PIN: 1234
-              </Text>
-              <Text style={[styles.infoText, { color: colors.text }]}>
-                • Cédula: 8-765-432 | PIN: 1234
-              </Text>
-              <Text style={[styles.infoText, { color: colors.text }]}>
-                • Cédula: 8-112-233 | PIN: 1234
-              </Text>
-            </View>
-          </Animated.View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            </Animated.View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   mainContainer: {
     flex: 1,
   },
@@ -246,80 +269,114 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   container: {
-    flex: 1,
-    minHeight: height,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
-  headerContainer: {
-    marginBottom: 20,
+  logoContainer: {
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  logoWrapper: {
+    width: 120,
+    height: 120,
+    marginBottom: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
+  },
+  appTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  appSubtitle: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   formContainer: {
     flex: 1,
-    paddingHorizontal: 20,
     justifyContent: 'center',
+    paddingBottom: 40,
   },
-  card: {
-    borderRadius: 20,
+  formCard: {
+    borderRadius: 16,
     padding: 24,
-    shadowColor: "#000",
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  formTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  inputContainer: {
+    gap: 16,
+    marginBottom: 32,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 56,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 0,
+  },
+  loginButton: {
+    borderRadius: 12,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#005293',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 8,
-    marginBottom: 20,
-  },
-  cardHeader: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  formFields: {
-    gap: 16,
-  },
-  input: {
-    backgroundColor: 'transparent',
-  },
-  button: {
-    borderRadius: 12,
-    marginTop: 8,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   buttonContent: {
-    height: 50,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  helpSection: {
-    marginTop: 24,
+  loadingContainer: {
     alignItems: 'center',
   },
-  helpText: {
-    fontSize: 12,
-    textAlign: 'center',
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
-  infoCard: {
-    backgroundColor: 'rgba(27, 77, 140, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#1B4D8C',
-  },
-  infoTitle: {
+  footerText: {
     fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    textAlign: 'center',
+    fontWeight: '500',
   },
-  infoText: {
-    fontSize: 12,
-    marginBottom: 4,
+  eyeButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

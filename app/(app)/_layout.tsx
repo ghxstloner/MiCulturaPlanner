@@ -17,7 +17,7 @@ export default function AppLayout() {
 
   return (
     <>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerStyle: {
@@ -41,7 +41,7 @@ export default function AppLayout() {
           name="index"
           options={{
             title: 'Asistencia a Eventos',
-            headerShown: false, // Esta pantalla tendrá su propio header personalizado
+            headerShown: false,
           }}
         />
         <Stack.Screen
@@ -62,6 +62,13 @@ export default function AppLayout() {
               fontSize: 18,
               color: colors.primary,
             },
+          }}
+        />
+        <Stack.Screen
+          name="marcaciones"
+          options={{
+            title: 'Marcaciones',
+            headerShown: false,
           }}
         />
       </Stack>

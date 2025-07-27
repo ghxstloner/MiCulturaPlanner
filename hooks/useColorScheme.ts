@@ -1,5 +1,4 @@
-import { useColorScheme as useNativeColorScheme } from 'react-native';
-
+// Siempre devuelve 'light' para implementar solo modo claro
 export function useColorScheme() {
-  return useNativeColorScheme() ?? 'light';
+  return 'light' as const;
 }

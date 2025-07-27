@@ -1,41 +1,44 @@
-const tintColorLight = '#1B4D8C'; // Azul institucional del MinCultura Panamá
-const tintColorDark = '#4A90D9';
+// Paleta de colores inspirada en la bandera de Panamá - Solo modo claro
+const primaryRed = '#d21033';   // Rojo de la bandera panameña
+const primaryBlue = '#005293';  // Azul de la bandera panameña
 
 export default {
   light: {
-    text: '#11181C',
-    background: '#FFFFFF',
-    surface: '#F8F9FA',
+    // Colores principales basados en la bandera de Panamá
+    text: '#1A202C',
+    textSecondary: '#718096',
+    background: '#F4F6F8',
+    surface: '#FFFFFF',
     card: '#FFFFFF',
-    tint: tintColorLight,
-    primary: tintColorLight,
-    secondary: '#D4AF37', // Dorado cultural
-    accent: '#8B5A3C', // Terracota
-    success: '#28A745',
-    warning: '#FFC107',
-    error: '#DC3545',
-    greyLight: '#E9ECEF',
-    greyMedium: '#6C757D',
-    greyDark: '#495057',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
-  },
-  dark: {
-    text: '#ECEDEE',
-    background: '#0F1419',
-    surface: '#1A1F24',
-    card: '#252A30',
-    tint: tintColorDark,
-    primary: tintColorDark,
-    secondary: '#F4D03F', // Dorado más brillante para modo oscuro
-    accent: '#CD853F', // Terracota más claro
-    success: '#32CD32',
-    warning: '#FFD700',
-    error: '#FF6B6B',
-    greyLight: '#3A3F47',
-    greyMedium: '#8E9297',
-    greyDark: '#C7C9CC',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    
+    // Colores de marca panameña
+    tint: primaryBlue,
+    primary: primaryBlue,
+    primaryRed: primaryRed,
+    secondary: primaryRed,
+    accent: primaryBlue,
+    
+    // Estados y utilidades
+    success: '#38A169',
+    warning: '#D69E2E',
+    error: '#E53E3E',
+    info: primaryBlue,
+    
+    // Grises modernos para contraste óptimo
+    greyLight: '#F7FAFC',
+    greyMedium: '#A0AEC0',
+    greyDark: '#4A5568',
+    
+    // Navegación
+    tabIconDefault: '#A0AEC0',
+    tabIconSelected: primaryBlue,
+    
+    // Bordes y separadores
+    border: '#E2E8F0',
+    divider: '#EDF2F7',
+    
+    // Overlays y sombras
+    overlay: 'rgba(26, 32, 44, 0.6)',
+    shadow: 'rgba(0, 0, 0, 0.1)',
   },
 };

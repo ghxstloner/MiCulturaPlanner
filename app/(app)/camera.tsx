@@ -178,10 +178,7 @@ export default function CameraScreen() {
     return (
       <View style={[styles.permissionContainer, { backgroundColor: colors.background }]}>
         <LinearGradient
-          colors={colorScheme === 'dark' 
-            ? ['#1B4D8C', '#4A90D9']
-            : ['#4A90D9', '#1B4D8C']
-          }
+          colors={['#4A90D9', '#1B4D8C']}
           style={styles.permissionGradient}
         />
         
@@ -349,7 +346,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 30,
     height: 30,
-    borderColor: '#D4AF37',
+    borderColor: '#005293',
     borderWidth: 3,
     borderTopWidth: 3,
     borderLeftWidth: 3,
@@ -397,7 +394,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   countdownText: {
-    color: '#D4AF37',
+    color: '#d21033',
     fontSize: 48,
     fontWeight: 'bold',
     marginTop: 20,

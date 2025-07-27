@@ -92,7 +92,7 @@ export default function AttendanceButton({
         ]}
       >
         <LinearGradient
-          colors={['#1B4D8C', '#4A90D9', '#D4AF37']}
+          colors={['#1B4D8C', '#4A90D9', '#d21033']}
           style={styles.glow}
         />
       </Animated.View>

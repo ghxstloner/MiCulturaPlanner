@@ -1,139 +1,155 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { User } from '../types';
+import { authService } from '../services/authService';
+import { UserInfo } from '../types/api';
 
 interface AuthState {
   isAuthenticated: boolean;
-  user: User | null;
+  user: UserInfo | null;
   loading: boolean;
+  error: string | null;
   
   // Actions
-  login: (cedula: string, pin: string) => Promise<boolean>;
+  login: (login: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   initAuth: () => Promise<void>;
-  updateUser: (userData: Partial<User>) => Promise<boolean>;
+  refreshUser: () => Promise<boolean>;
+  clearError: () => void;
 }
-
-// Mock users data para Panamá
-const MOCK_USERS: User[] = [
-  {
-    id: '1',
-    name: 'Ana María González',
-    email: 'ana.gonzalez@mincultura.gob.pa',
-    cedula: '8-123-456',
-    position: 'Coordinadora de Eventos',
-    department: 'Dirección de Artes Escénicas',
-    phone: '+507 6123-4567'
-  },
-  {
-    id: '2',
-    name: 'Carlos Eduardo Ramírez',
-    email: 'carlos.ramirez@mincultura.gob.pa',
-    cedula: '8-765-432',
-    position: 'Personal Técnico',
-    department: 'Dirección de Música',
-    phone: '+507 6765-4321'
-  },
-  {
-    id: '3',
-    name: 'María Fernanda López',
-    email: 'maria.lopez@mincultura.gob.pa',
-    cedula: '8-112-233',
-    position: 'Curadora',
-    department: 'Dirección de Patrimonio',
-    phone: '+507 6112-2334'
-  }
-];
-
-const PIN_HASH = '1234'; // PIN de acceso simple para demo
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   user: null,
   loading: false,
+  error: null,
 
-  login: async (cedula: string, pin: string) => {
-    set({ loading: true });
+  login: async (login: string, password: string) => {
+    set({ loading: true, error: null });
     
     try {
-      // Simular delay de red
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      if (pin !== PIN_HASH) {
-        set({ loading: false });
-        return false;
-      }
-
-      const user = MOCK_USERS.find(u => u.cedula === cedula);
-      if (!user) {
-        set({ loading: false });
-        return false;
-      }
-
-      // Guardar datos de sesión
-      await AsyncStorage.setItem('user', JSON.stringify(user));
-      await AsyncStorage.setItem('isAuthenticated', 'true');
+      const response = await authService.login(login, password);
       
       set({ 
         isAuthenticated: true, 
-        user,
-        loading: false 
+        user: response.user_info,
+        loading: false,
+        error: null
       });
       
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error en login:', error);
-      set({ loading: false });
+      const errorMessage = error.message || 'Error de autenticación';
+      set({ 
+        loading: false, 
+        error: errorMessage,
+        isAuthenticated: false,
+        user: null
+      });
       return false;
     }
   },
 
   logout: async () => {
+    set({ loading: true });
+    
     try {
-      await AsyncStorage.multiRemove(['user', 'isAuthenticated']);
+      await authService.logout();
       set({ 
         isAuthenticated: false, 
         user: null,
-        loading: false
+        loading: false,
+        error: null
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error en logout:', error);
+      // Even if logout fails, clear local state
+      set({ 
+        isAuthenticated: false, 
+        user: null,
+        loading: false,
+        error: 'Error al cerrar sesión'
+      });
     }
   },
 
   initAuth: async () => {
+    set({ loading: true, error: null });
+    
     try {
-      const [storedUser, isAuth] = await AsyncStorage.multiGet(['user', 'isAuthenticated']);
+      const [token, userInfo] = await Promise.all([
+        authService.getStoredToken(),
+        authService.getStoredUserInfo()
+      ]);
       
-      if (isAuth[1] === 'true' && storedUser[1]) {
-        const user = JSON.parse(storedUser[1]);
-        set({ 
-          isAuthenticated: true, 
-          user,
-          loading: false
-        });
+      if (token && userInfo) {
+        // Verify that the token is still valid
+        try {
+          const currentUserResponse = await authService.getCurrentUser();
+          set({ 
+            isAuthenticated: true, 
+            user: currentUserResponse.data,
+            loading: false,
+            error: null
+          });
+        } catch (error: any) {
+          // Invalid token, clear data
+          console.warn('Token inválido, limpiando datos:', error);
+          await authService.logout();
+          set({ 
+            isAuthenticated: false, 
+            user: null,
+            loading: false,
+            error: 'Sesión expirada'
+          });
+        }
       } else {
-        set({ loading: false });
+        set({ 
+          loading: false, 
+          isAuthenticated: false, 
+          user: null,
+          error: null
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error inicializando auth:', error);
-      set({ loading: false });
+      set({ 
+        loading: false, 
+        isAuthenticated: false, 
+        user: null,
+        error: 'Error de inicialización'
+      });
     }
   },
 
-  updateUser: async (userData: Partial<User>) => {
-    try {
-      const currentUser = get().user;
-      if (!currentUser) return false;
-
-      const updatedUser = { ...currentUser, ...userData };
-      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-      
-      set({ user: updatedUser });
-      return true;
-    } catch (error) {
-      console.error('Error actualizando usuario:', error);
+  refreshUser: async () => {
+    const { isAuthenticated } = get();
+    
+    if (!isAuthenticated) {
       return false;
     }
+    
+    try {
+      const response = await authService.getCurrentUser();
+      set({ 
+        user: response.data, 
+        error: null 
+      });
+      return true;
+    } catch (error: any) {
+      console.error('Error refrescando usuario:', error);
+      const errorMessage = error.message || 'Error al actualizar información del usuario';
+      set({ error: errorMessage });
+      
+      // If refresh fails due to auth issues, logout
+      if (error.status === 401 || error.status === 403) {
+        get().logout();
+      }
+      
+      return false;
+    }
+  },
+
+  clearError: () => {
+    set({ error: null });
   },
 }));

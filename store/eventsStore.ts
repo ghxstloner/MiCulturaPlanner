@@ -1,156 +1,195 @@
-import * as Location from 'expo-location';
 import { create } from 'zustand';
-import { CulturalEvent, MOCK_EVENTS } from '../constants/Events';
-import { AttendanceRecord, FacialRecognitionResult, LocationValidation } from '../types';
+import { eventsService } from '../services/eventsService';
+import { Event, EventDetail, EventPlanification, EventoBackend, FacialRecognitionResponse, PlanificacionBackend, Tripulante } from '../types/api';
 
 interface EventsState {
-  events: CulturalEvent[];
-  currentEvent: CulturalEvent | null;
-  attendanceRecords: AttendanceRecord[];
+  events: Event[];
+  currentEvent: EventDetail | null;
+  currentPlanification: EventPlanification | null;
   loading: boolean;
+  error: string | null;
   
   // Actions
   loadEvents: () => Promise<void>;
-  setCurrentEvent: (eventId: string) => void;
-  validateLocation: (eventId: string, currentLocation: Location.LocationObject) => Promise<LocationValidation>;
-  simulateFacialRecognition: (photo: string) => Promise<FacialRecognitionResult>;
-  recordAttendance: (eventId: string, photo: string, location: Location.LocationObject) => Promise<boolean>;
-  getAttendanceHistory: () => AttendanceRecord[];
+  loadEventDetail: (eventId: number) => Promise<void>;
+  loadEventPlanification: (eventId: number) => Promise<void>;
+  markAttendance: (eventId: number, photoUri: string) => Promise<FacialRecognitionResponse>;
+  clearError: () => void;
 }
 
-// Función para calcular distancia entre dos puntos
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371e3; // Radio de la Tierra en metros
-  const φ1 = lat1 * Math.PI/180;
-  const φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180;
-  const Δλ = (lon2-lon1) * Math.PI/180;
+// Función para mapear evento del backend al frontend
+const mapEventoBackendToFrontend = (evento: EventoBackend): Event => {
+  const fechaEvento = evento.fecha_evento || new Date().toISOString().split('T')[0];
+  const horaInicio = evento.hora_inicio || '08:00:00';
+  const horaFin = evento.hora_fin || '17:00:00';
+  
+  return {
+    id: evento.id_evento,
+    nombre: evento.descripcion_evento || `Evento ${evento.id_evento}`,
+    descripcion: evento.descripcion_evento || undefined,
+    fecha_inicio: `${fechaEvento}T${horaInicio}`,
+    fecha_fin: `${fechaEvento}T${horaFin}`,
+    ubicacion: evento.descripcion_lugar || 'Ubicación no especificada',
+    organizador: evento.descripcion_departamento || undefined,
+    estado: determineEventStatus(fechaEvento, horaInicio, horaFin),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+};
 
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-          Math.cos(φ1) * Math.cos(φ2) *
-          Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+// Función para determinar el estado del evento
+const determineEventStatus = (fecha: string, horaInicio: string, horaFin: string): Event['estado'] => {
+  const now = new Date();
+  const fechaInicio = new Date(`${fecha}T${horaInicio}`);
+  const fechaFin = new Date(`${fecha}T${horaFin}`);
+  
+  if (now < fechaInicio) {
+    return 'programado';
+  } else if (now >= fechaInicio && now <= fechaFin) {
+    return 'en_curso';
+  } else {
+    return 'finalizado';
+  }
+};
 
-  return R * c;
+// Función para mapear planificación del backend al frontend
+const mapPlanificacionBackendToFrontend = (planificacion: PlanificacionBackend[]): EventPlanification => {
+  const tripulantes: Tripulante[] = planificacion.map(plan => ({
+    crew_id: plan.crew_id,
+    nombres: plan.nombres,
+    apellidos: plan.apellidos,
+    cedula: plan.identidad || undefined,
+    email: undefined,
+    departamento: undefined,
+    cargo: undefined,
+    activo: plan.estatus === '1' || plan.estatus === 'activo',
+    id_tripulante: plan.id_planificacion,
+  }));
+
+  return {
+    tripulantes,
+    evento_id: 0,
+    total_asignados: tripulantes.length,
+  };
 };
 
 export const useEventsStore = create<EventsState>((set, get) => ({
   events: [],
   currentEvent: null,
-  attendanceRecords: [],
+  currentPlanification: null,
   loading: false,
+  error: null,
 
   loadEvents: async () => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     
     try {
-      // Simular carga desde API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await eventsService.getEvents();
       
-      // Filtrar eventos de hoy y futuros
-      const today = new Date();
-      const activeEvents = MOCK_EVENTS.filter(event => {
-        const eventDate = new Date(event.startDate);
-        return eventDate >= today || event.status === 'en_curso';
-      });
-      
-      set({ 
-        events: activeEvents,
-        loading: false 
-      });
-    } catch (error) {
+      if (response.success && response.data) {
+        const eventsMapped = response.data.map(mapEventoBackendToFrontend);
+        set({ 
+          events: eventsMapped,
+          loading: false,
+          error: null
+        });
+      } else {
+        set({ 
+          events: [],
+          loading: false,
+          error: response.message || 'Error al cargar eventos'
+        });
+      }
+    } catch (error: any) {
       console.error('Error cargando eventos:', error);
-      set({ loading: false });
-    }
-  },
-
-  setCurrentEvent: (eventId: string) => {
-    const event = get().events.find(e => e.id === eventId);
-    set({ currentEvent: event || null });
-  },
-
-  validateLocation: async (eventId: string, currentLocation: Location.LocationObject) => {
-    const event = get().events.find(e => e.id === eventId);
-    
-    if (!event) {
-      return {
-        isValid: false,
-        distance: 0,
-        requiredRadius: 0,
-        message: 'Evento no encontrado'
-      };
-    }
-
-    const distance = calculateDistance(
-      currentLocation.coords.latitude,
-      currentLocation.coords.longitude,
-      event.latitude,
-      event.longitude
-    );
-
-    const isValid = distance <= event.radius;
-
-    return {
-      isValid,
-      distance: Math.round(distance),
-      requiredRadius: event.radius,
-      message: isValid 
-        ? `Ubicación verificada. Estás a ${Math.round(distance)}m del evento.`
-        : `Estás a ${Math.round(distance)}m del evento. Debes estar dentro de ${event.radius}m.`
-    };
-  },
-
-  simulateFacialRecognition: async (photo: string) => {
-    // Simular procesamiento de reconocimiento facial
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Simular resultado aleatorio con alta probabilidad de éxito
-    const success = Math.random() > 0.1; // 90% de éxito
-    const confidence = success ? 0.85 + Math.random() * 0.14 : 0.3 + Math.random() * 0.4;
-    
-    return {
-      success,
-      confidence: Math.round(confidence * 100) / 100,
-      userId: success ? 'user_id_from_face' : undefined,
-      message: success 
-        ? `Reconocimiento exitoso (${Math.round(confidence * 100)}% confianza)`
-        : 'No se pudo verificar la identidad. Intenta de nuevo.'
-    };
-  },
-
-  recordAttendance: async (eventId: string, photo: string, location: Location.LocationObject) => {
-    try {
-      const timestamp = new Date().toISOString();
-      const attendanceId = `attendance_${Date.now()}`;
-      
-      const newRecord: AttendanceRecord = {
-        id: attendanceId,
-        userId: 'current_user', // En una app real vendría del authStore
-        eventId,
-        timestamp,
-        location: {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          accuracy: location.coords.accuracy || undefined
-        },
-        photo,
-        status: 'verified',
-        verificationMethod: 'facial'
-      };
-
-      const currentRecords = get().attendanceRecords;
       set({ 
-        attendanceRecords: [...currentRecords, newRecord]
+        loading: false, 
+        error: error.message || 'Error de conexión con el servidor'
+      });
+    }
+  },
+
+  loadEventDetail: async (eventId: number) => {
+    set({ loading: true, error: null });
+    
+    try {
+      const response = await eventsService.getEventDetail(eventId);
+      
+      if (response.success && response.data) {
+        const eventMapped = mapEventoBackendToFrontend(response.data);
+        const eventDetail: EventDetail = {
+          ...eventMapped,
+          direccion: response.data.descripcion_lugar || undefined,
+          requisitos: [],
+        };
+        
+        set({ 
+          currentEvent: eventDetail,
+          loading: false,
+          error: null
+        });
+      } else {
+        set({ 
+          currentEvent: null,
+          loading: false,
+          error: response.message || 'Evento no encontrado'
+        });
+      }
+    } catch (error: any) {
+      console.error('Error cargando detalle del evento:', error);
+      set({ 
+        loading: false, 
+        error: error.message || 'Error de conexión'
+      });
+    }
+  },
+
+  loadEventPlanification: async (eventId: number) => {
+    set({ loading: true, error: null });
+    
+    try {
+      const response = await eventsService.getEventPlanification(eventId);
+      
+      if (response.success && response.data) {
+        const planificationMapped = mapPlanificacionBackendToFrontend(response.data);
+        planificationMapped.evento_id = eventId;
+        
+        set({ 
+          currentPlanification: planificationMapped,
+          loading: false,
+          error: null
+        });
+      } else {
+        set({ 
+          currentPlanification: null,
+          loading: false,
+          error: response.message || 'No hay planificación para este evento'
+        });
+      }
+    } catch (error: any) {
+      console.error('Error cargando planificación del evento:', error);
+      set({ 
+        loading: false, 
+        error: error.message || 'Error de conexión'
+      });
+    }
+  },
+
+  markAttendance: async (eventId: number, photoUri: string): Promise<FacialRecognitionResponse> => {
+    try {
+      const result = await eventsService.markAttendance({
+        eventId,
+        photoUri,
       });
 
-      return true;
-    } catch (error) {
-      console.error('Error registrando asistencia:', error);
-      return false;
+      return result;
+    } catch (error: any) {
+      console.error('Error marcando asistencia:', error);
+      throw error;
     }
   },
 
-  getAttendanceHistory: () => {
-    return get().attendanceRecords;
+  clearError: () => {
+    set({ error: null });
   },
 }));

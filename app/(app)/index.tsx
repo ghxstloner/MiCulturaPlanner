@@ -2,11 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
-import * as Location from 'expo-location';
 import { Href, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Portal } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -16,8 +15,10 @@ import { useEventsStore } from '@/store/eventsStore';
 import AttendanceModal from '../../components/attendance/AttendanceModal';
 import CulturalHeader from '../../components/common/CulturalHeader';
 import EventCard from '../../components/events/EventCard';
+import EventFilters from '../../components/events/EventFilters';
 import UserProfileCard from '../../components/user/UserProfileCard';
 import Colors from '../../constants/Colors';
+import { Event } from '../../types/api';
 
 // Global callback registry for camera interactions
 if (typeof (global as any).onPhotoTakenCallback === 'undefined') {
@@ -37,26 +38,25 @@ export default function AttendanceScreen() {
   const { user, logout } = useAuthStore();
   const { 
     events, 
-    currentEvent, 
     loading: eventsLoading, 
-    loadEvents, 
-    setCurrentEvent,
-    validateLocation,
-    simulateFacialRecognition,
-    recordAttendance
+    error: eventsError,
+    loadEvents,
+    markAttendance,
+    clearError
   } = useEventsStore();
 
-  // State
+  // Local state
   const [loading, setLoading] = useState(false);
+  const [processingEventId, setProcessingEventId] = useState<number | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
   const [modalType, setModalType] = useState<'success' | 'error'>('success');
   const [refreshing, setRefreshing] = useState(false);
   const [showUserCard, setShowUserCard] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<'todos' | 'hoy' | 'esta_semana' | 'programados' | 'en_curso' | 'finalizados'>('todos');
 
   // Permissions hooks
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const [locationPermission, requestLocationPermission] = Location.useForegroundPermissions();
 
   // Start animations
   useEffect(() => {
@@ -79,6 +79,13 @@ export default function AttendanceScreen() {
     loadEvents();
   }, [loadEvents]);
 
+  // Clear errors when component unmounts
+  useEffect(() => {
+    return () => {
+      clearError();
+    };
+  }, [clearError]);
+
   const showModal = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setModalMessage(message);
     setModalType(type);
@@ -94,7 +101,7 @@ export default function AttendanceScreen() {
     // Auto-hide modal after delay
     setTimeout(() => {
       setModalVisible(false);
-    }, type === 'error' ? 3500 : 2000);
+    }, type === 'error' ? 4000 : 2500);
   }, []);
 
   const handleLogout = useCallback(async () => {
@@ -107,8 +114,12 @@ export default function AttendanceScreen() {
           text: "Sí", 
           onPress: async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            await logout();
-            router.replace('/(auth)/login' as Href);
+            try {
+              await logout();
+              router.replace('/(auth)/login' as Href);
+            } catch (error) {
+              console.error('Error during logout:', error);
+            }
           }, 
           style: "destructive" 
         }
@@ -118,73 +129,91 @@ export default function AttendanceScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadEvents();
-    setRefreshing(false);
+    try {
+      await loadEvents();
+    } catch (error) {
+      console.error('Error refreshing events:', error);
+    } finally {
+      setRefreshing(false);
+    }
   }, [loadEvents]);
 
-  const handleMarkAttendance = async (eventId: string) => {
+  const handleMarkAttendance = async (eventId: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     // Check permissions first
     if (!await checkRequiredPermissions()) return;
 
-    // Set current event
-    setCurrentEvent(eventId);
+    // Set processing state for this specific event
+    setProcessingEventId(eventId);
 
     // Register callback for camera
     const callbackKey = `photoCallback_${callbackCounter++}`;
-    (global as any).onPhotoTakenCallback[callbackKey] = onPhotoTaken;
+    (global as any).onPhotoTakenCallback[callbackKey] = (photo: { uri: string }) => 
+      onPhotoTaken(photo, eventId);
 
     // Navigate to camera screen
     router.push(`/(app)/camera?eventId=${eventId}&onPhotoTakenCallbackKey=${callbackKey}` as Href);
   };
 
-  const onPhotoTaken = async (photo: { uri: string }) => {
-    console.log("Foto recibida:", photo.uri);
+  const handleViewDetails = async (eventId: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Navigate immediately - let the details page handle loading with animations
+    router.push(`/(app)/event-details?eventId=${eventId}` as Href);
+  };
+
+  const onPhotoTaken = async (photo: { uri: string }, eventId: number) => {
+    console.log("Foto recibida para evento:", eventId, photo.uri);
     setLoading(true);
     
     try {
-      if (!currentEvent) {
-        throw new Error("No hay evento seleccionado");
-      }
-
-      // Get current location
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-      // Validate location
-      const locationValidation = await validateLocation(currentEvent.id, location);
+      // Mark attendance using real API
+      const result = await markAttendance(eventId, photo.uri);
       
-      if (!locationValidation.isValid) {
-        showModal(locationValidation.message, 'error');
-        setLoading(false);
-        return;
-      }
-
-      // Simulate facial recognition
-      const faceResult = await simulateFacialRecognition(photo.uri);
-      
-      if (!faceResult.success) {
-        showModal(faceResult.message, 'error');
-        setLoading(false);
-        return;
-      }
-
-      // Record attendance
-      const success = await recordAttendance(currentEvent.id, photo.uri, location);
-      
-      if (success) {
-        showModal(`¡Asistencia registrada exitosamente!\n${locationValidation.message}`, 'success');
+      if (result.success) {
+        let successMessage = `¡Asistencia registrada exitosamente!\n${result.message}`;
+        
+        if (result.tripulante_info) {
+          successMessage += `\n\nColaborador: ${result.tripulante_info.nombres || 'N/A'}`;
+        }
+        
+        if (result.matches_found && result.matches_found.length > 0) {
+          const bestMatch = result.matches_found[0];
+          successMessage += `\nConfianza: ${(bestMatch.confidence * 100).toFixed(1)}%`;
+        }
+        
+        showModal(successMessage, 'success');
+        
+        // Refresh events to get updated data
+        setTimeout(() => {
+          loadEvents();
+        }, 1000);
+        
       } else {
-        throw new Error("No se pudo registrar la asistencia");
+        showModal(result.message || 'Error al registrar asistencia', 'error');
       }
 
     } catch (error: any) {
       console.error("Error processing attendance:", error);
-      showModal(error.message || "Ocurrió un error al procesar la asistencia.", 'error');
+      
+      let errorMessage = "Ocurrió un error al procesar la asistencia.";
+      
+      if (error.message.includes('HTTP 422')) {
+        errorMessage = "Datos inválidos. Verifique la información del evento.";
+      } else if (error.message.includes('HTTP 500')) {
+        errorMessage = "Error del servidor. Intente nuevamente en unos momentos.";
+      } else if (error.message.includes('HTTP 401')) {
+        errorMessage = "Sesión expirada. Por favor, inicie sesión nuevamente.";
+        // Could trigger logout here
+      } else if (error.message.includes('fetch')) {
+        errorMessage = "Error de conexión. Verifique su conexión a internet.";
+      }
+      
+      showModal(errorMessage, 'error');
     } finally {
       setLoading(false);
+      setProcessingEventId(null);
     }
   };
 
@@ -195,17 +224,13 @@ export default function AttendanceScreen() {
       camPermission = await requestCameraPermission();
     }
     if (!camPermission?.granted) {
-      Alert.alert("Permiso Requerido", "Se necesita acceso a la cámara para el reconocimiento facial.");
-      return false;
-    }
-
-    // Check location permissions
-    let locPermission = locationPermission;
-    if (!locPermission?.granted) {
-      locPermission = await requestLocationPermission();
-    }
-    if (!locPermission?.granted) {
-      Alert.alert("Permiso Requerido", "Se necesita acceso a la ubicación para validar la asistencia.");
+      Alert.alert(
+        "Permiso Requerido", 
+        "Se necesita acceso a la cámara para el reconocimiento facial.",
+        [
+          { text: "Entendido", style: "default" }
+        ]
+      );
       return false;
     }
 
@@ -217,9 +242,94 @@ export default function AttendanceScreen() {
     setShowUserCard(!showUserCard);
   };
 
+  // Función para filtrar eventos
+  const getFilteredEvents = (): Event[] => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const oneWeekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    switch (selectedFilter) {
+      case 'todos':
+        return events;
+      case 'hoy':
+        return events.filter(event => {
+          const eventDate = new Date(event.fecha_inicio);
+          return eventDate >= today && eventDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        });
+      case 'esta_semana':
+        return events.filter(event => {
+          const eventDate = new Date(event.fecha_inicio);
+          return eventDate >= today && eventDate <= oneWeekFromNow;
+        });
+      case 'programados':
+        return events.filter(event => event.estado === 'programado');
+      case 'en_curso':
+        return events.filter(event => event.estado === 'en_curso');
+      case 'finalizados':
+        return events.filter(event => event.estado === 'finalizado');
+      default:
+        return events;
+    }
+  };
+
+  const filteredEvents = getFilteredEvents();
+
+  const handleFilterChange = (filter: typeof selectedFilter) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedFilter(filter);
+  };
+
+  // Show loading overlay when processing photo
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+        <StatusBar style="dark" />
+        
+        <View style={styles.loadingOverlay}>
+          <Ionicons name="camera" size={64} color={colors.primary} />
+          <Text style={[styles.loadingTitle, { color: colors.text }]}>
+            Procesando Asistencia
+          </Text>
+          <Text style={[styles.loadingText, { color: colors.greyMedium }]}>
+            Analizando reconocimiento facial...
+          </Text>
+          <Text style={[styles.loadingSubtext, { color: colors.greyMedium }]}>
+            Por favor espere
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error state if there's a persistent error
+  if (eventsError && !eventsLoading && !refreshing) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+        <StatusBar style="dark" />
+        
+        <View style={styles.errorContainer}>
+          <Ionicons name="cloud-offline" size={64} color={colors.error} />
+          <Text style={[styles.errorTitle, { color: colors.text }]}>
+            Error de Conexión
+          </Text>
+          <Text style={[styles.errorText, { color: colors.greyMedium }]}>
+            {eventsError}
+          </Text>
+          <View style={styles.errorActions}>
+            <Text style={[styles.errorHelp, { color: colors.greyMedium }]}>
+              • Verifique su conexión a internet{'\n'}
+              • Asegúrese de que el servidor esté funcionando{'\n'}
+              • Intente nuevamente en unos momentos
+            </Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
       
       {/* Header */}
       <Animated.View style={[
@@ -227,8 +337,8 @@ export default function AttendanceScreen() {
         { opacity: fadeAnim }
       ]}>
         <CulturalHeader 
-          title="MinCultura Check"
-          subtitle="Asistencia a Eventos Culturales"
+          title="MiCultura Planner"
+          subtitle="Sistema de Asistencia a Eventos"
           onProfilePress={toggleUserCard}
           onLogoutPress={handleLogout}
         />
@@ -238,9 +348,9 @@ export default function AttendanceScreen() {
       {showUserCard && (
         <Animated.View style={[
           styles.userCardOverlay,
-          { backgroundColor: colorScheme === 'dark' ? 'rgba(15, 20, 25, 0.95)' : 'rgba(255, 255, 255, 0.95)' }
+          { backgroundColor: 'rgba(255, 255, 255, 0.95)' }
         ]}>
-          <BlurView intensity={20} tint={colorScheme === 'dark' ? 'dark' : 'light'} style={StyleSheet.absoluteFillObject} />
+          <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFillObject} />
           <SafeAreaView style={styles.userCardSafeArea} edges={['top', 'bottom']}>
             <ScrollView 
               contentContainerStyle={styles.userCardScrollContent}
@@ -272,6 +382,8 @@ export default function AttendanceScreen() {
               onRefresh={onRefresh}
               colors={[colors.primary]}
               tintColor={colors.primary}
+              title="Actualizando eventos..."
+              titleColor={colors.greyMedium}
             />
           }
         >
@@ -285,15 +397,22 @@ export default function AttendanceScreen() {
             
             <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
               <Ionicons name="checkmark-circle" size={24} color={colors.success} />
-              <Text style={[styles.statNumber, { color: colors.text }]}>0</Text>
-              <Text style={[styles.statLabel, { color: colors.greyMedium }]}>Asistencias</Text>
+              <Text style={[styles.statNumber, { color: colors.text }]}>
+                {events.filter(event => event.estado === 'en_curso').length}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.greyMedium }]}>En Curso</Text>
             </View>
             
-            <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-              <Ionicons name="location" size={24} color={colors.secondary} />
-              <Text style={[styles.statNumber, { color: colors.text }]}>GPS</Text>
-              <Text style={[styles.statLabel, { color: colors.greyMedium }]}>Ubicación</Text>
-            </View>
+            <TouchableOpacity 
+              style={[styles.statCard, { backgroundColor: colors.surface }]}
+              onPress={() => router.push('/(app)/marcaciones' as Href)}
+            >
+              <Ionicons name="checkmark-done" size={24} color={colors.success} />
+              <Text style={[styles.statNumber, { color: colors.text }]}>
+                {events.reduce((total, event) => total + (event.estado === 'en_curso' ? 1 : 0), 0)}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.greyMedium }]}>Ver Marcaciones</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Events Section */}
@@ -302,30 +421,50 @@ export default function AttendanceScreen() {
               Eventos Disponibles
             </Text>
             
-            {eventsLoading ? (
+            {/* Event Filters */}
+            <EventFilters
+              selectedFilter={selectedFilter}
+              onFilterChange={handleFilterChange}
+              events={events}
+              animationValue={fadeAnim}
+            />
+            
+            {eventsLoading && !refreshing ? (
               <View style={styles.loadingContainer}>
+                <Ionicons name="sync" size={32} color={colors.primary} />
                 <Text style={[styles.loadingText, { color: colors.greyMedium }]}>
-                  Cargando eventos...
+                  Cargando eventos desde el servidor...
                 </Text>
               </View>
-            ) : events.length === 0 ? (
+            ) : filteredEvents.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Ionicons name="calendar-outline" size={48} color={colors.greyMedium} />
                 <Text style={[styles.emptyText, { color: colors.greyMedium }]}>
-                  No hay eventos programados
+                  {events.length === 0 
+                    ? "No hay eventos activos programados"
+                    : `No hay eventos ${selectedFilter === 'todos' ? '' : `para "${selectedFilter}"`}`
+                  }
+                </Text>
+                <Text style={[styles.emptySubtext, { color: colors.greyMedium }]}>
+                  {events.length === 0 
+                    ? "Desliza hacia abajo para actualizar"
+                    : "Prueba con otro filtro o actualiza la lista"
+                  }
                 </Text>
               </View>
             ) : (
-              events.map((event) => (
+              filteredEvents.map((event: Event) => (
                 <EventCard
                   key={event.id}
                   event={event}
                   onMarkAttendance={handleMarkAttendance}
-                  loading={loading && currentEvent?.id === event.id}
+                  onViewDetails={handleViewDetails}
+                  loading={processingEventId === event.id}
                 />
               ))
             )}
           </View>
+
         </ScrollView>
       </Animated.View>
 
@@ -415,9 +554,30 @@ const styles = StyleSheet.create({
   loadingContainer: {
     padding: 40,
     alignItems: 'center',
+    gap: 12,
+  },
+  loadingOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  loadingTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   loadingText: {
     fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   emptyContainer: {
     padding: 40,
@@ -427,5 +587,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 16,
     textAlign: 'center',
+    fontWeight: '500',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  errorActions: {
+    width: '100%',
+    maxWidth: 300,
+  },
+  errorHelp: {
+    fontSize: 14,
+    textAlign: 'left',
+    lineHeight: 20,
   },
 });

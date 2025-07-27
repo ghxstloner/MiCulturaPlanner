@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../hooks/useColorScheme';
 
 interface CulturalHeaderProps {
@@ -12,287 +12,157 @@ interface CulturalHeaderProps {
   onLogoutPress?: () => void;
 }
 
+// Componente de la bandera de Panamá
+const PanamaFlagIcon = () => (
+  <View style={styles.flagContainer}>
+    {/* Cuadrante blanco superior izquierdo */}
+    <View style={[styles.flagQuadrant, styles.topLeft, { backgroundColor: '#FFFFFF' }]} />
+    {/* Cuadrante azul superior derecho */}
+    <View style={[styles.flagQuadrant, styles.topRight, { backgroundColor: '#005293' }]} />
+    {/* Cuadrante rojo inferior izquierdo */}
+    <View style={[styles.flagQuadrant, styles.bottomLeft, { backgroundColor: '#d21033' }]} />
+    {/* Cuadrante blanco inferior derecho */}
+    <View style={[styles.flagQuadrant, styles.bottomRight, { backgroundColor: '#FFFFFF' }]} />
+  </View>
+);
+
 export default function CulturalHeader({ 
-  title = 'MinCultura Check',
-  subtitle = 'Asistencia a Eventos Culturales',
+  title = 'MiCultura',
+  subtitle = 'Sistema de Asistencia',
   showLogo = true,
   onProfilePress,
   onLogoutPress
 }: CulturalHeaderProps) {
   const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme];
 
-  // Animaciones
-  const logoAnim = useRef(new Animated.Value(0)).current;
-  const textAnim = useRef(new Animated.Value(0)).current;
-  const subtitleAnim = useRef(new Animated.Value(0)).current;
-  const iconAnim = useRef(new Animated.Value(0)).current;
+  // Animación simple y suave
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Secuencia de animaciones
-    Animated.sequence([
-      Animated.timing(logoAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.parallel([
-        Animated.timing(textAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(iconAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.timing(subtitleAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [logoAnim, textAnim, subtitleAnim, iconAnim]);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim]);
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={colorScheme === 'dark' 
-          ? ['#1B4D8C', '#4A90D9', '#1B4D8C']
-          : ['#1B4D8C', '#2E5BA8', '#4A90D9']
-        }
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.gradient}
-      />
-      
+    <Animated.View style={[
+      styles.container, 
+      { backgroundColor: colors.surface, opacity: fadeAnim }
+    ]}>
       <View style={styles.contentContainer}>
+        {/* Logo de bandera panameña */}
         {showLogo && (
-          <Animated.View 
-            style={[
-              styles.logoContainer,
-              {
-                opacity: logoAnim,
-                transform: [
-                  { scale: logoAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.8, 1]
-                  })},
-                  { rotateY: logoAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['45deg', '0deg']
-                  })}
-                ]
-              }
-            ]}
-          >
-            <View style={styles.logoBackground}>
-              <Ionicons name="library" size={32} color="#FFF" />
-            </View>
-          </Animated.View>
+          <View style={styles.logoContainer}>
+            <PanamaFlagIcon />
+          </View>
         )}
 
+        {/* Contenido del texto */}
         <View style={styles.textContainer}>
-          <Animated.View style={styles.titleRow}>
-            <Animated.Text 
-              style={[
-                styles.title, 
-                {
-                  opacity: textAnim,
-                  transform: [
-                    { translateX: textAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [30, 0]
-                    })}
-                  ]
-                }
-              ]}
-            >
-              {title}
-            </Animated.Text>
-            
-            <Animated.View style={[
-              styles.iconContainer,
-              {
-                opacity: iconAnim,
-                transform: [
-                  { scale: iconAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 1]
-                  })}
-                ]
-              }
-            ]}>
-              <Ionicons name="shield-checkmark" size={20} color="#D4AF37" />
-            </Animated.View>
-          </Animated.View>
-          
-          <Animated.Text 
-            style={[
-              styles.subtitle, 
-              {
-                opacity: subtitleAnim,
-                transform: [
-                  { translateX: subtitleAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [20, 0]
-                  })}
-                ]
-              }
-            ]}
-          >
+          <Text style={[styles.title, { color: colors.primary }]}>
+            {title}
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             {subtitle}
-          </Animated.Text>
-          
-          <Animated.View style={[
-            styles.brandingContainer,
-            {
-              opacity: subtitleAnim,
-              transform: [
-                { translateY: subtitleAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [10, 0]
-                })}
-              ]
-            }
-          ]}>
-            <Text style={styles.branding}>Ministerio de Cultura</Text>
-            <Text style={styles.brandingSubtitle}>República de Panamá</Text>
-          </Animated.View>
+          </Text>
         </View>
 
-        {/* Botones de acción */}
+        {/* Acciones del header */}
         {(onProfilePress || onLogoutPress) && (
-          <Animated.View style={[
-            styles.headerActions,
-            {
-              opacity: iconAnim,
-              transform: [
-                { scale: iconAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 1]
-                })}
-              ]
-            }
-          ]}>
+          <View style={styles.headerActions}>
             {onProfilePress && (
               <TouchableOpacity
-                style={styles.headerButton}
+                style={[styles.actionButton, { backgroundColor: colors.greyLight }]}
                 onPress={onProfilePress}
                 activeOpacity={0.7}
               >
-                <Ionicons name="person-circle" size={24} color="#FFF" />
+                <Ionicons name="person-outline" size={18} color={colors.primary} />
               </TouchableOpacity>
             )}
             
             {onLogoutPress && (
               <TouchableOpacity
-                style={[styles.headerButton, styles.logoutButton]}
+                style={[styles.actionButton, { backgroundColor: colors.greyLight }]}
                 onPress={onLogoutPress}
                 activeOpacity={0.7}
               >
-                <Ionicons name="log-out" size={24} color="#FFF" />
+                <Ionicons name="log-out-outline" size={18} color={colors.primaryRed} />
               </TouchableOpacity>
             )}
-          </Animated.View>
+          </View>
         )}
       </View>
-      
-      <View style={styles.divider} />
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 20,
+    paddingVertical: 16,
     paddingHorizontal: 20,
-    width: '100%',
-    position: 'relative',
-  },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
   contentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 1,
   },
   logoContainer: {
-    marginRight: 16,
+    marginRight: 12,
   },
-  logoBackground: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+  flagContainer: {
+    width: 32,
+    height: 22,
+    borderRadius: 4,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  flagQuadrant: {
+    position: 'absolute',
+    width: 16,
+    height: 11,
+  },
+  topLeft: {
+    top: 0,
+    left: 0,
+  },
+  topRight: {
+    top: 0,
+    right: 0,
+  },
+  bottomLeft: {
+    bottom: 0,
+    left: 0,
+  },
+  bottomRight: {
+    bottom: 0,
+    right: 0,
   },
   textContainer: {
     flex: 1,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
   title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    flex: 1,
-  },
-  iconContainer: {
-    marginLeft: 8,
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 2,
   },
   subtitle: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 8,
-  },
-  brandingContainer: {
-    marginTop: 4,
-  },
-  branding: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#D4AF37',
-  },
-  brandingSubtitle: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 2,
+    fontWeight: '500',
   },
   headerActions: {
     flexDirection: 'row',
     gap: 8,
-    marginLeft: 16,
   },
-  headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  logoutButton: {
-    backgroundColor: 'rgba(220, 53, 69, 0.2)',
-    borderColor: 'rgba(220, 53, 69, 0.3)',
-  },
-  divider: {
-    height: 2,
-    width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginTop: 16,
-    borderRadius: 1,
   },
 });
