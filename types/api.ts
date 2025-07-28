@@ -69,6 +69,7 @@ export interface PlanificacionBackend {
   estatus: string;
   descripcion_evento: string | null;
   descripcion_lugar: string | null;
+  imagen: string | null; // ✅ Campo agregado para la imagen
 }
 
 export interface EventPlanification {
@@ -91,6 +92,7 @@ export interface Tripulante {
   fecha_vuelo?: string;
   hora_entrada?: string;
   hora_salida?: string;
+  imagen?: string;
 }
 
 export interface FacialRecognitionResponse {

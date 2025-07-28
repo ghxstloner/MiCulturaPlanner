@@ -3,7 +3,6 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../hooks/useColorScheme';
-import { canMarkAttendance } from '../../store/eventsStore';
 import { Event } from '../../types/api';
 
 interface EventCardProps {
@@ -28,6 +27,9 @@ export default function EventCard({
   const isToday = eventStartDate.toDateString() === now.toDateString();
   const isActive = event.estado === 'activo';
   const isPast = now > eventEndDate;
+
+  // Verificar disponibilidad de marcación al cargar el componente
+
   
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('es-ES', {
@@ -74,8 +76,55 @@ export default function EventCard({
     }
   };
 
-  const canMark = canMarkAttendance(event);
+  const getMarkingButtonStatus = () => {
+    if (loading) {
+      return {
+        text: 'Procesando...',
+        color: colors.greyMedium,
+        icon: 'sync' as const,
+        disabled: true
+      };
+    }
+
+    if (!isActive) {
+      return {
+        text: 'Evento Inactivo',
+        color: colors.greyMedium,
+        icon: 'ban-outline' as const,
+        disabled: true
+      };
+    }
+
+    if (isPast) {
+      return {
+        text: 'Evento Finalizado',
+        color: colors.greyMedium,
+        icon: 'time-outline' as const,
+        disabled: true
+      };
+    }
+
+    if (!isToday) {
+      return {
+        text: 'No es Hoy',
+        color: colors.greyMedium,
+        icon: 'calendar-outline' as const,
+        disabled: true
+      };
+    }
+
+
+
+    return {
+      text: 'Marcar Asistencia',
+      color: colors.success,
+      icon: 'camera' as const,
+      disabled: false
+    };
+  };
+
   const cardOpacity = isPast ? 0.8 : 1;
+  const buttonStatus = getMarkingButtonStatus();
 
   return (
     <View style={[
@@ -110,10 +159,10 @@ export default function EventCard({
               {getStatusText(event.estado)}
             </Text>
           </View>
-          {isActive && !isPast && (
+          {isActive && !isPast && isToday && (
             <View style={[styles.liveIndicator, { backgroundColor: colors.success }]}>
               <View style={styles.pulseIndicator} />
-              <Text style={styles.liveText}>DISPONIBLE</Text>
+              <Text style={styles.liveText}>HOY</Text>
             </View>
           )}
         </View>
@@ -177,35 +226,24 @@ export default function EventCard({
         
         <TouchableOpacity
           onPress={() => onMarkAttendance(event.id)}
-          disabled={loading || !canMark}
+          disabled={buttonStatus.disabled}
           style={[
             styles.attendanceButton,
             { 
-              backgroundColor: canMark 
-                ? (isActive ? colors.success : colors.accent)
-                : colors.greyMedium,
-              opacity: loading ? 0.7 : 1
+              backgroundColor: buttonStatus.color,
+              opacity: buttonStatus.disabled ? 0.7 : 1
             }
           ]}
           activeOpacity={0.8}
         >
-          {loading ? (
-            <Text style={styles.attendanceButtonText}>Procesando...</Text>
-          ) : (
-            <>
-              <Ionicons 
-                name={canMark ? "camera" : "ban-outline"} 
-                size={16} 
-                color="#FFFFFF" 
-              />
-              <Text style={styles.attendanceButtonText}>
-                {canMark 
-                  ? (isActive ? 'Marcar Asistencia' : 'Marcar Asistencia')
-                  : 'No Disponible'
-                }
-              </Text>
-            </>
-          )}
+          <Ionicons 
+            name={buttonStatus.icon} 
+            size={16} 
+            color="#FFFFFF" 
+          />
+          <Text style={styles.attendanceButtonText}>
+            {buttonStatus.text}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>

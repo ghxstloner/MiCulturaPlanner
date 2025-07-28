@@ -62,6 +62,7 @@ export default function AppLayout() {
               fontSize: 18,
               color: colors.primary,
             },
+            headerShown: false
           }}
         />
         <Stack.Screen

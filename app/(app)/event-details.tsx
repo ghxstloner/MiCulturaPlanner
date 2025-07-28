@@ -1,13 +1,86 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button, Card, Chip, DataTable } from 'react-native-paper';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Button, Card, Chip } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { useEventsStore } from '../../store/eventsStore';
+
+// Componente para mostrar cada colaborador como card
+const ColaboradorCard = ({ colaborador }: { colaborador: any }) => {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme];
+  
+  const imageUrl = `${process.env.EXPO_PUBLIC_IMAGE_URL}/${colaborador.crew_id}/${colaborador.imagen || 'default.jpg'}`;
+
+  return (
+    <Card style={[styles.colaboradorCard, { backgroundColor: colors.surface }]}>
+      <Card.Content style={styles.colaboradorContent}>
+        <View style={styles.colaboradorHeader}>
+          <View style={styles.avatarContainer}>
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.avatar}
+            />
+            <View style={[
+              styles.statusIndicator,
+              { backgroundColor: colaborador.activo ? colors.success : colors.greyMedium }
+            ]} />
+          </View>
+          
+          <View style={styles.colaboradorInfo}>
+            <Text style={[styles.colaboradorNombre, { color: colors.text }]}>
+              {colaborador.nombres} {colaborador.apellidos}
+            </Text>
+            <View style={styles.colaboradorMeta}>
+              <View style={[styles.crewIdBadge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.crewIdText}>{colaborador.crew_id}</Text>
+              </View>
+              {colaborador.cedula && (
+                <Text style={[styles.cedulaText, { color: colors.greyMedium }]}>
+                  ID: {colaborador.cedula}
+                </Text>
+              )}
+            </View>
+            
+            {colaborador.fecha_vuelo && (
+              <View style={styles.fechaContainer}>
+                <Ionicons name="calendar-outline" size={14} color={colors.greyMedium} />
+                <Text style={[styles.fechaText, { color: colors.greyMedium }]}>
+                  {new Date(colaborador.fecha_vuelo).toLocaleDateString('es-ES')}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {(colaborador.hora_entrada || colaborador.hora_salida) && (
+          <View style={styles.horariosContainer}>
+            {colaborador.hora_entrada && (
+              <View style={styles.horarioItem}>
+                <Ionicons name="log-in-outline" size={14} color={colors.success} />
+                <Text style={[styles.horarioText, { color: colors.success }]}>
+                  Entrada: {colaborador.hora_entrada}
+                </Text>
+              </View>
+            )}
+            {colaborador.hora_salida && (
+              <View style={styles.horarioItem}>
+                <Ionicons name="log-out-outline" size={14} color={colors.warning} />
+                <Text style={[styles.horarioText, { color: colors.warning }]}>
+                  Salida: {colaborador.hora_salida}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+      </Card.Content>
+    </Card>
+  );
+};
 
 export default function EventDetailsScreen() {
   const colorScheme = useColorScheme();
@@ -40,9 +113,9 @@ export default function EventDetailsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
         <View style={styles.loadingContainer}>
-          <Ionicons name="sync" size={48} color={colors.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.text }]}>
             Cargando detalles del evento...
           </Text>
@@ -56,7 +129,7 @@ export default function EventDetailsScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color={colors.error} />
           <Text style={[styles.errorTitle, { color: colors.text }]}>
@@ -95,7 +168,7 @@ export default function EventDetailsScreen() {
 
   if (!currentEvent) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right', 'bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
         <View style={styles.errorContainer}>
           <Ionicons name="document-outline" size={48} color={colors.greyMedium} />
           <Text style={[styles.errorTitle, { color: colors.text }]}>
@@ -139,11 +212,34 @@ export default function EventDetailsScreen() {
   };
 
   const colaboradoresActivos = currentPlanification?.tripulantes.filter(t => t.activo).length || 0;
-  const colaboradoresInactivos = currentPlanification?.tripulantes.filter(t => !t.activo).length || 0;
+  
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right', 'bottom']}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
+      {/* Header fijo con safe area */}
+      <View style={[styles.headerContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={styles.headerContent}>
+          <Button
+            mode="text"
+            onPress={() => router.back()}
+            icon="arrow-left"
+            textColor={colors.primary}
+            compact
+          >
+            Volver
+          </Button>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Detalles del Evento
+          </Text>
+          <View style={{ width: 80 }} />
+        </View>
+      </View>
+
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         
         {/* Event Info Card */}
         <Card style={[styles.card, { backgroundColor: colors.surface }]}>
@@ -239,23 +335,11 @@ export default function EventDetailsScreen() {
                   </View>
                 </View>
               )}
-
-              <View style={styles.infoItem}>
-                <Ionicons name="calendar-outline" size={20} color={colors.secondary} />
-                <View style={styles.infoTextContainer}>
-                  <Text style={[styles.infoLabel, { color: colors.greyMedium }]}>
-                    Creado
-                  </Text>
-                  <Text style={[styles.infoValue, { color: colors.text }]}>
-                    {new Date(currentEvent.created_at).toLocaleDateString('es-ES')}
-                  </Text>
-                </View>
-              </View>
             </View>
           </Card.Content>
         </Card>
 
-        {/* Planification Card */}
+        {/* Colaboradores Card - Ahora como grid de cards */}
         {currentPlanification ? (
           <Card style={[styles.card, { backgroundColor: colors.surface }]}>
             <Card.Content>
@@ -271,45 +355,27 @@ export default function EventDetailsScreen() {
                   >
                     {currentPlanification.total_asignados} total
                   </Chip>
+                  {colaboradoresActivos > 0 && (
+                    <Chip 
+                      style={{ backgroundColor: colors.success }}
+                      textStyle={{ color: 'white', fontSize: 12 }}
+                      compact
+                    >
+                      {colaboradoresActivos} activos
+                    </Chip>
+                  )}
                 </View>
               </View>
 
               {currentPlanification.tripulantes.length > 0 ? (
-                <DataTable>
-                  <DataTable.Header>
-                    <DataTable.Title>Nombre Completo</DataTable.Title>
-                    <DataTable.Title>Posición</DataTable.Title>
-                    <DataTable.Title>Cédula</DataTable.Title>
-                    <DataTable.Title>Fecha</DataTable.Title>
-                  </DataTable.Header>
-
+                <View style={styles.colaboradoresGrid}>
                   {currentPlanification.tripulantes.map((colaborador) => (
-                    <DataTable.Row key={colaborador.id_tripulante}>
-                      <DataTable.Cell style={{ flex: 2 }}>
-                        <Text style={{ color: colors.text, fontWeight: '500' }}>
-                          {colaborador.nombres} {colaborador.apellidos}
-                        </Text>
-                      </DataTable.Cell>
-                      <DataTable.Cell style={{ flex: 1 }}>
-                        <View style={styles.posicionContainer}>
-                          <Text style={[styles.posicionText, { color: colors.primary }]}>
-                            {colaborador.crew_id}
-                          </Text>
-                        </View>
-                      </DataTable.Cell>
-                      <DataTable.Cell style={{ flex: 1 }}>
-                        <Text style={{ color: colors.text, fontSize: 12 }}>
-                          {colaborador.cedula || 'N/A'}
-                        </Text>
-                      </DataTable.Cell>
-                      <DataTable.Cell style={{ flex: 1 }}>
-                        <Text style={{ color: colors.greyMedium, fontSize: 12 }}>
-                          {colaborador.fecha_vuelo ? new Date(colaborador.fecha_vuelo).toLocaleDateString('es-ES') : 'N/A'}
-                        </Text>
-                      </DataTable.Cell>
-                    </DataTable.Row>
+                    <ColaboradorCard
+                      key={colaborador.id_tripulante}
+                      colaborador={colaborador}
+                    />
                   ))}
-                </DataTable>
+                </View>
               ) : (
                 <View style={styles.emptyColaboradores}>
                   <Ionicons name="people-outline" size={48} color={colors.greyMedium} />
@@ -336,18 +402,6 @@ export default function EventDetailsScreen() {
           </Card>
         )}
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <Button 
-            mode="outlined" 
-            onPress={() => router.back()}
-            style={styles.backButton}
-            textColor={colors.primary}
-          >
-            Volver a Eventos
-          </Button>
-        </View>
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -357,11 +411,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerContainer: {
+    borderBottomWidth: 1,
+    paddingVertical: 8,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
   scrollView: {
     flex: 1,
   },
   content: {
     padding: 16,
+    paddingBottom: 100, // Extra espacio al final
   },
   loadingContainer: {
     flex: 1,
@@ -477,12 +546,96 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
   },
-  actionButtons: {
-    marginTop: 24,
-    marginBottom: 40,
+  colaboradoresGrid: {
+    gap: 12,
   },
-  backButton: {
-    borderRadius: 8,
+  colaboradorCard: {
+    marginBottom: 8,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  colaboradorContent: {
+    padding: 16,
+  },
+  colaboradorHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#f0f0f0',
+  },
+  statusIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  colaboradorInfo: {
+    flex: 1,
+  },
+  colaboradorNombre: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  colaboradorMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 8,
+  },
+  crewIdBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  crewIdText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+    fontFamily: 'monospace',
+  },
+  cedulaText: {
+    fontSize: 12,
+  },
+  fechaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  fechaText: {
+    fontSize: 12,
+  },
+  horariosContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    gap: 4,
+  },
+  horarioItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  horarioText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   paisContainer: {
     flexDirection: 'row',
@@ -498,18 +651,5 @@ const styles = StyleSheet.create({
   estrella: {
     fontSize: 16,
     marginLeft: 2,
-  },
-  posicionContainer: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignItems: 'center',
-    minWidth: 60,
-  },
-  posicionText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    fontFamily: 'monospace',
   },
 });

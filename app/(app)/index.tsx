@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/store/authStore';
-import { canMarkAttendance, useEventsStore } from '@/store/eventsStore';
+import { useEventsStore } from '@/store/eventsStore';
 import AttendanceModal from '../../components/attendance/AttendanceModal';
 import CulturalHeader from '../../components/common/CulturalHeader';
 import EventCard from '../../components/events/EventCard';
@@ -36,7 +36,7 @@ export default function AttendanceScreen() {
   
   // Store hooks
   const { user, logout } = useAuthStore();
-  const { 
+    const {
     events, 
     loading: eventsLoading, 
     error: eventsError,
@@ -45,8 +45,7 @@ export default function AttendanceScreen() {
     loadMoreEvents,
     markAttendance,
     clearError,
-    setFilter,
-    currentFilter
+    setFilter
   } = useEventsStore();
 
   // Local state
@@ -146,17 +145,6 @@ export default function AttendanceScreen() {
   const handleMarkAttendance = async (eventId: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // Verificar si el evento permite marcaciones
-    const event = events.find(e => e.id === eventId);
-    if (!event || !canMarkAttendance(event)) {
-      Alert.alert(
-        "Marcación No Disponible",
-        "Este evento no permite marcaciones en este momento.",
-        [{ text: "Entendido", style: "default" }]
-      );
-      return;
-    }
-    
     // Check permissions first
     if (!await checkRequiredPermissions()) return;
 
@@ -180,7 +168,6 @@ export default function AttendanceScreen() {
   };
 
   const onPhotoTaken = async (photo: { uri: string }, eventId: number) => {
-    console.log("Foto recibida para evento:", eventId, photo.uri);
     setLoading(true);
     
     try {
@@ -188,15 +175,34 @@ export default function AttendanceScreen() {
       const result = await markAttendance(eventId, photo.uri);
       
       if (result.success) {
-        let successMessage = `¡Asistencia registrada exitosamente!\n${result.message}`;
+        let successMessage = '';
         
+        // Mensajes específicos según el caso
         if (result.tripulante_info) {
-          successMessage += `\n\nColaborador: ${result.tripulante_info.nombres || 'N/A'}`;
-        }
-        
-        if (result.matches_found && result.matches_found.length > 0) {
-          const bestMatch = result.matches_found[0];
-          successMessage += `\nConfianza: ${(bestMatch.confidence * 100).toFixed(1)}%`;
+          const { nombres, crew_id } = result.tripulante_info;
+          const nombreCompleto = `${nombres}`;
+          
+          // Si es primera marcación (inicio)
+          if (result.marcacion_info?.tipo_marcacion === 'Entrada') {
+            const horaInicio = result.marcacion_info.hora || 'hora no especificada';
+            successMessage = `Marcación a la hora de inicio del evento ${horaInicio}.\n\nColaborador: ${nombreCompleto} (${crew_id})`;
+          } 
+          // Si es segunda marcación (finalización)
+          else if (result.marcacion_info?.tipo_marcacion === 'Salida') {
+            successMessage = `Marcación de finalización del evento.\n\nColaborador: ${nombreCompleto} (${crew_id})`;
+          }
+          // Marcación general exitosa
+          else {
+            successMessage = `¡Asistencia registrada exitosamente!\n\nColaborador: ${nombreCompleto} (${crew_id})`;
+          }
+          
+          // Agregar confianza si está disponible
+          if (result.matches_found && result.matches_found.length > 0) {
+            const bestMatch = result.matches_found[0];
+            successMessage += `\nConfianza: ${(bestMatch.confidence * 100).toFixed(1)}%`;
+          }
+        } else {
+          successMessage = result.message || '¡Asistencia registrada exitosamente!';
         }
         
         showModal(successMessage, 'success');
@@ -207,7 +213,23 @@ export default function AttendanceScreen() {
         }, 1000);
         
       } else {
-        showModal(result.message || 'Error al registrar asistencia', 'error');
+        // Manejo de errores específicos
+        let errorMessage = result.message || 'Error al registrar asistencia';
+        
+        // Mensajes específicos de error
+        if (errorMessage.includes('Rostro no reconocido') || errorMessage.includes('No se detectó') || errorMessage.includes('reconocimiento insuficiente')) {
+          errorMessage = 'Mejora la luz para acertar el reconocimiento facial.';
+        } else if (errorMessage.includes('no está planificado') || errorMessage.includes('No Planificado')) {
+          // Si tenemos info del tripulante pero no está planificado
+          if (result.tripulante_info) {
+            const { nombres, apellidos, crew_id } = result.tripulante_info;
+            errorMessage = `El colaborador ${nombres} ${apellidos} con la posición ${crew_id} no está planificado para este evento.`;
+          } else {
+            errorMessage = 'El colaborador reconocido no está planificado para este evento.';
+          }
+        }
+        
+        showModal(errorMessage, 'error');
       }
 
     } catch (error: any) {
@@ -215,14 +237,16 @@ export default function AttendanceScreen() {
       
       let errorMessage = "Ocurrió un error al procesar la asistencia.";
       
+      // Errores específicos de red/servidor
       if (error.message.includes('HTTP 422')) {
         errorMessage = "Datos inválidos. Verifique la información del evento.";
       } else if (error.message.includes('HTTP 500')) {
         errorMessage = "Error del servidor. Intente nuevamente en unos momentos.";
       } else if (error.message.includes('HTTP 401')) {
         errorMessage = "Sesión expirada. Por favor, inicie sesión nuevamente.";
-        // Could trigger logout here
-      } else if (error.message.includes('fetch')) {
+      } else if (error.message.includes('HTTP 404')) {
+        errorMessage = "Mejora la luz para acertar el reconocimiento facial.";
+      } else if (error.message.includes('fetch') || error.message.includes('network')) {
         errorMessage = "Error de conexión. Verifique su conexión a internet.";
       }
       
@@ -261,7 +285,7 @@ export default function AttendanceScreen() {
   const handleFilterChange = (filter: typeof selectedFilter) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedFilter(filter);
-    const filterParam = filter === 'todos' ? undefined : filter;
+    const filterParam = filter === 'todos' ? null : filter;
     setFilter(filterParam);
   };
 

@@ -62,6 +62,7 @@ const mapPlanificacionBackendToFrontend = (planificacion: PlanificacionBackend[]
     fecha_vuelo: plan.fecha_vuelo || undefined,
     hora_entrada: plan.hora_entrada || undefined,
     hora_salida: plan.hora_salida || undefined,
+    imagen: plan.imagen || undefined, // Mapear el campo imagen correctamente
   }));
 
   return {
@@ -71,25 +72,35 @@ const mapPlanificacionBackendToFrontend = (planificacion: PlanificacionBackend[]
   };
 };
 
-// Función para verificar si se puede marcar asistencia
-export const canMarkAttendance = (event: Event): boolean => {
-  if (event.estado !== 'activo' || event.estatus !== 1) {
+// Función para verificar si se puede marcar asistencia - CORREGIDA PARA JEFES
+export const canMarkAttendance = async (event: Event): Promise<boolean> => {
+  try {
+    // Verificar que el evento esté activo
+    if (event.estado !== 'activo' || event.estatus !== 1) {
+      return false;
+    }
+    
+    // Verificar que el evento sea hoy
+    const today = new Date().toISOString().split('T')[0];
+    const eventDate = event.fecha_inicio.split('T')[0];
+    
+    if (eventDate !== today) {
+      return false;
+    }
+    
+    // Verificar si el evento ya finalizó
+    const now = new Date();
+    const eventEndDate = new Date(event.fecha_fin);
+    
+    if (now > eventEndDate) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error en canMarkAttendance:', error);
     return false;
   }
-  
-  // Verificar que el evento sea hoy
-  const today = new Date().toISOString().split('T')[0];
-  const eventDate = event.fecha_inicio.split('T')[0];
-  
-  if (eventDate !== today) {
-    return false;
-  }
-  
-  // Verificar si el evento ya finalizó
-  const now = new Date();
-  const eventEndDate = new Date(event.fecha_fin);
-  
-  return now <= eventEndDate;
 };
 
 export const useEventsStore = create<EventsState>((set, get) => ({
@@ -139,7 +150,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
     const state = get();
     if (state.loading || !state.hasMoreEvents) return;
     
-    await state.loadEvents(state.currentFilter, false);
+    await state.loadEvents(state.currentFilter || undefined, false);
   },
 
   loadEventDetail: async (eventId: number) => {
@@ -229,7 +240,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
   setFilter: (filter: string | null) => {
     const state = get();
     if (state.currentFilter !== filter) {
-      state.loadEvents(filter, true);
+      state.loadEvents(filter || undefined, true);
     }
   },
 }));
