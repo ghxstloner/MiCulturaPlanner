@@ -8,11 +8,17 @@
     "scheme": "micultura-planner",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "androidStatusBar": {
+      "backgroundColor": "#FFFFFF",
+      "barStyle": "dark-content"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "gov.micultura.planner",
       "infoPlist": {
-        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para el reconocimiento facial en eventos del Ministerio de Cultura."
+        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para el reconocimiento facial en eventos del Ministerio de Cultura.",
+        "UIStatusBarStyle": "UIStatusBarStyleDarkContent",
+        "UIViewControllerBasedStatusBarAppearance": false
       }
     },
     "android": {

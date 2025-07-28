@@ -17,7 +17,11 @@ export default function AppLayout() {
 
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar 
+        style="dark" 
+        backgroundColor={colors.surface}
+        translucent={false}
+      />
       <Stack
         screenOptions={{
           headerStyle: {
@@ -37,13 +41,15 @@ export default function AppLayout() {
           },
         }}
       >
+        {/* Tabs principales - sin header */}
         <Stack.Screen
-          name="index"
+          name="(tabs)"
           options={{
-            title: 'Asistencia a Eventos',
             headerShown: false,
           }}
         />
+        
+        {/* Pantallas modales/extras que mantienen el stack */}
         <Stack.Screen
           name="camera"
           options={{
@@ -57,12 +63,7 @@ export default function AppLayout() {
           name="event-details"
           options={{
             title: 'Detalles del Evento',
-            headerTitleStyle: {
-              fontWeight: 'bold',
-              fontSize: 18,
-              color: colors.primary,
-            },
-            headerShown: false
+            headerShown: false,
           }}
         />
         <Stack.Screen

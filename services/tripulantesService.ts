@@ -1,12 +1,11 @@
 import { StandardResponse } from '../types/api';
 import { apiClient } from './api';
 
-interface TripulanteBackend {
+export interface Tripulante {
   id_tripulante: number;
   crew_id: string;
   nombres: string;
   apellidos: string;
-  nombre_completo: string;
   identidad: string | null;
   email: string | null;
   celular: string | null;
@@ -14,20 +13,29 @@ interface TripulanteBackend {
   departamento: string | null;
   cargo: string | null;
   estatus: number;
-  id_departamento: number | null;
-  id_cargo: number | null;
 }
 
-type TripulanteSearchResponse = StandardResponse<TripulanteBackend[]>;
-type TripulanteDetailResponse = StandardResponse<TripulanteBackend>;
+export interface TripulantesResponse extends StandardResponse<Tripulante[]> {}
 
 export class TripulantesService {
-  async searchTripulantes(query: string): Promise<TripulanteSearchResponse> {
-    return apiClient.get(`/tripulantes/search?q=${encodeURIComponent(query)}`);
+  async getTripulantes(): Promise<TripulantesResponse> {
+    return apiClient.get('/tripulantes/');
   }
 
-  async getTripulante(crewId: string): Promise<TripulanteDetailResponse> {
-    return apiClient.get(`/tripulantes/${crewId}`);
+  async getTripulanteById(id: number): Promise<StandardResponse<Tripulante>> {
+    return apiClient.get(`/tripulantes/${id}`);
+  }
+
+  async createTripulante(tripulante: Omit<Tripulante, 'id_tripulante'>): Promise<StandardResponse<Tripulante>> {
+    return apiClient.post('/tripulantes', tripulante);
+  }
+
+  async updateTripulante(id: number, tripulante: Partial<Tripulante>): Promise<StandardResponse<Tripulante>> {
+    return apiClient.post(`/tripulantes/${id}`, tripulante);
+  }
+
+  async deleteTripulante(id: number): Promise<StandardResponse> {
+    return apiClient.post(`/tripulantes/${id}/delete`, {});
   }
 }
 

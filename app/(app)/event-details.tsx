@@ -5,9 +5,9 @@ import { Dimensions, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacit
 import { ActivityIndicator, Button, Card, Chip } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import Colors from '../../constants/Colors';
-import { useColorScheme } from '../../hooks/useColorScheme';
-import { useEventsStore } from '../../store/eventsStore';
+import Colors from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { useEventsStore } from '@/store/eventsStore';
 
 // Componente modal para mostrar imagen en grande
 const ImageModal = ({ visible, imageSource, onClose }: { 
@@ -15,8 +15,6 @@ const ImageModal = ({ visible, imageSource, onClose }: {
   imageSource: any; 
   onClose: () => void; 
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme];
   const { width, height } = Dimensions.get('window');
 
   return (

@@ -9,17 +9,17 @@ import { Alert, Animated, RefreshControl, ScrollView, StyleSheet, Text, Touchabl
 import { Portal } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import AttendanceModal from '@/components/attendance/AttendanceModal';
+import CulturalHeader from '@/components/common/CulturalHeader';
+import EventCard from '@/components/events/EventCard';
+import EventFilters from '@/components/events/EventFilters';
+import UserProfileCard from '@/components/user/UserProfileCard';
+import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { eventsService } from '@/services/eventsService';
 import { useAuthStore } from '@/store/authStore';
 import { useEventsStore } from '@/store/eventsStore';
-import AttendanceModal from '../../components/attendance/AttendanceModal';
-import CulturalHeader from '../../components/common/CulturalHeader';
-import EventCard from '../../components/events/EventCard';
-import EventFilters from '../../components/events/EventFilters';
-import UserProfileCard from '../../components/user/UserProfileCard';
-import Colors from '../../constants/Colors';
-import { eventsService } from '../../services/eventsService';
-import { Event } from '../../types/api';
+import { Event } from '@/types/api';
 
 // Global callback registry for camera interactions
 if (typeof (global as any).onPhotoTakenCallback === 'undefined') {
@@ -27,7 +27,7 @@ if (typeof (global as any).onPhotoTakenCallback === 'undefined') {
 }
 let callbackCounter = 0;
 
-export default function AttendanceScreen() {
+export default function EventosScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
   
@@ -632,7 +632,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
   },
   statsContainer: {
     flexDirection: 'row',
