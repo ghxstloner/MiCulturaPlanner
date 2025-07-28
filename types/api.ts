@@ -70,6 +70,10 @@ export interface PlanificacionBackend {
   descripcion_evento: string | null;
   descripcion_lugar: string | null;
   imagen: string | null; // ✅ Campo agregado para la imagen
+  // ✅ MARCACIONES REALES - Campos de marcaciones reales
+  marcacion_hora_entrada: string | null;
+  marcacion_hora_salida: string | null;
+  procesado: number;
 }
 
 export interface EventPlanification {
@@ -93,6 +97,10 @@ export interface Tripulante {
   hora_entrada?: string;
   hora_salida?: string;
   imagen?: string;
+  // ✅ MARCACIONES REALES - Campos de marcaciones reales
+  marcacion_entrada?: string;
+  marcacion_salida?: string;
+  procesado?: number;
 }
 
 export interface FacialRecognitionResponse {

@@ -23,7 +23,15 @@ interface EventsState {
 
 // Función para mapear evento del backend al frontend
 const mapEventoBackendToFrontend = (evento: EventoBackend): Event => {
-  const fechaEvento = evento.fecha_evento || new Date().toISOString().split('T')[0];
+  // Manejar fecha_evento de manera más robusta
+  let fechaEvento: string;
+  if (evento.fecha_evento && evento.fecha_evento.trim() !== '') {
+    fechaEvento = evento.fecha_evento;
+  } else {
+    // Si no hay fecha_evento, usar fecha actual pero marcar como inactivo
+    fechaEvento = new Date().toISOString().split('T')[0];
+  }
+  
   const horaInicio = evento.hora_inicio || '08:00:00';
   const horaFin = evento.hora_fin || '17:00:00';
   
@@ -31,7 +39,7 @@ const mapEventoBackendToFrontend = (evento: EventoBackend): Event => {
   const estatus = evento.estatus ?? 0;
   const estado = estatus === 1 ? 'activo' : 'inactivo';
   
-  return {
+  const mappedEvent = {
     id: evento.id_evento,
     nombre: evento.descripcion_evento || `Evento ${evento.id_evento}`,
     descripcion: evento.descripcion_evento || undefined,
@@ -40,11 +48,13 @@ const mapEventoBackendToFrontend = (evento: EventoBackend): Event => {
     ubicacion: evento.descripcion_lugar || 'Ubicación no especificada',
     organizador: evento.descripcion_departamento || undefined,
     pais: evento.pais_nombre || undefined,
-    estado: estado,
+    estado: estado as 'activo' | 'inactivo',
     estatus: estatus,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
+  
+  return mappedEvent;
 };
 
 // Función para mapear planificación del backend al frontend
@@ -63,6 +73,10 @@ const mapPlanificacionBackendToFrontend = (planificacion: PlanificacionBackend[]
     hora_entrada: plan.hora_entrada || undefined,
     hora_salida: plan.hora_salida || undefined,
     imagen: plan.imagen || undefined, // Mapear el campo imagen correctamente
+    // ✅ MARCACIONES REALES - Mapear campos de marcaciones reales
+    marcacion_entrada: plan.marcacion_hora_entrada || undefined,
+    marcacion_salida: plan.marcacion_hora_salida || undefined,
+    procesado: plan.procesado || undefined,
   }));
 
   return {
@@ -80,8 +94,13 @@ export const canMarkAttendance = async (event: Event): Promise<boolean> => {
       return false;
     }
     
-    // Verificar que el evento sea hoy
-    const today = new Date().toISOString().split('T')[0];
+    // Verificar que el evento sea hoy - USAR FECHA LOCAL
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const today = `${year}-${month}-${day}`;
+    
     const eventDate = event.fecha_inicio.split('T')[0];
     
     if (eventDate !== today) {
@@ -89,7 +108,6 @@ export const canMarkAttendance = async (event: Event): Promise<boolean> => {
     }
     
     // Verificar si el evento ya finalizó
-    const now = new Date();
     const eventEndDate = new Date(event.fecha_fin);
     
     if (now > eventEndDate) {
@@ -118,10 +136,12 @@ export const useEventsStore = create<EventsState>((set, get) => ({
     try {
       const state = get();
       const offset = refresh ? 0 : state.events.length;
+      
       const response = await eventsService.getEvents(false, filtro, offset, 20);
       
       if (response.success && response.data) {
         const eventsMapped = response.data.map(mapEventoBackendToFrontend);
+        
         set({ 
           events: refresh ? eventsMapped : [...state.events, ...eventsMapped],
           loading: false,
@@ -138,7 +158,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
         });
       }
     } catch (error: any) {
-      console.error('Error cargando eventos:', error);
+      console.error('[LOAD] Error cargando eventos:', error);
       set({ 
         loading: false, 
         error: error.message || 'Error de conexión con el servidor'

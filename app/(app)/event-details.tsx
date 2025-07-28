@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Dimensions, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ActivityIndicator, Button, Card, Chip } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,78 +9,244 @@ import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { useEventsStore } from '../../store/eventsStore';
 
+// Componente modal para mostrar imagen en grande
+const ImageModal = ({ visible, imageSource, onClose }: { 
+  visible: boolean; 
+  imageSource: any; 
+  onClose: () => void; 
+}) => {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme];
+  const { width, height } = Dimensions.get('window');
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.8)' }]}>
+        <TouchableOpacity 
+          style={styles.modalCloseButton} 
+          onPress={onClose}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="close" size={24} color="white" />
+        </TouchableOpacity>
+        
+        <View style={styles.modalContent}>
+          <Image
+            source={imageSource}
+            style={[
+              styles.modalImage,
+              { 
+                width: width * 0.9, 
+                height: height * 0.7,
+                maxWidth: 400,
+                maxHeight: 600
+              }
+            ]}
+            resizeMode="contain"
+            onError={(error) => {
+              console.warn('Error cargando imagen en modal:', error);
+            }}
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 // Componente para mostrar cada colaborador como card
 const ColaboradorCard = ({ colaborador }: { colaborador: any }) => {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
+  const [imageModalVisible, setImageModalVisible] = useState(false);
   
-  const imageUrl = `${process.env.EXPO_PUBLIC_IMAGE_URL}/${colaborador.crew_id}/${colaborador.imagen || 'default.jpg'}`;
+  // ✅ MANEJO INTELIGENTE DE IMÁGENES
+  const getImageSource = () => {
+    if (colaborador.imagen && colaborador.imagen.trim() !== '') {
+      // Imagen remota si existe
+      return { 
+        uri: `${process.env.EXPO_PUBLIC_IMAGE_URL}/${colaborador.crew_id}/${colaborador.imagen}` 
+      };
+    } else {
+      // Imagen local por defecto
+      return require('../../assets/images/default-avatar.png');
+    }
+  };
+
+  // Verificar si tiene marcaciones registradas
+  const tieneMarcaciones = colaborador.marcacion_entrada || colaborador.marcacion_salida;
+  const tieneHorariosPlanificados = colaborador.hora_entrada || colaborador.hora_salida;
 
   return (
-    <Card style={[styles.colaboradorCard, { backgroundColor: colors.surface }]}>
-      <Card.Content style={styles.colaboradorContent}>
-        <View style={styles.colaboradorHeader}>
-          <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: imageUrl }}
-              style={styles.avatar}
-            />
-            <View style={[
-              styles.statusIndicator,
-              { backgroundColor: colaborador.activo ? colors.success : colors.greyMedium }
-            ]} />
-          </View>
-          
-          <View style={styles.colaboradorInfo}>
-            <Text style={[styles.colaboradorNombre, { color: colors.text }]}>
-              {colaborador.nombres} {colaborador.apellidos}
-            </Text>
-            <View style={styles.colaboradorMeta}>
-              <View style={[styles.crewIdBadge, { backgroundColor: colors.primary }]}>
-                <Text style={styles.crewIdText}>{colaborador.crew_id}</Text>
+    <>
+      <Card style={[styles.colaboradorCard, { backgroundColor: colors.surface }]}>
+        <Card.Content style={styles.colaboradorContent}>
+          <View style={styles.colaboradorHeader}>
+            <TouchableOpacity 
+              style={styles.avatarContainer}
+              onPress={() => setImageModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Image
+                source={getImageSource()}
+                style={styles.avatar}
+                // ✅ FALLBACK EN CASO DE ERROR
+                onError={(error) => {
+                  console.warn('Error cargando imagen:', error);
+                }}
+              />
+              <View style={[
+                styles.statusIndicator,
+                { backgroundColor: colaborador.activo ? colors.success : colors.greyMedium }
+              ]} />
+            </TouchableOpacity>
+            
+            <View style={styles.colaboradorInfo}>
+              <Text style={[styles.colaboradorNombre, { color: colors.text }]}>
+                {colaborador.nombres} {colaborador.apellidos}
+              </Text>
+              <View style={styles.colaboradorMeta}>
+                <View style={[styles.crewIdBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.crewIdText}>{colaborador.crew_id}</Text>
+                </View>
+                {colaborador.cedula && (
+                  <Text style={[styles.cedulaText, { color: colors.greyMedium }]}>
+                    Cédula: {colaborador.cedula}
+                  </Text>
+                )}
               </View>
-              {colaborador.cedula && (
-                <Text style={[styles.cedulaText, { color: colors.greyMedium }]}>
-                  ID: {colaborador.cedula}
-                </Text>
+              
+              {colaborador.fecha_vuelo && (
+                <View style={styles.fechaContainer}>
+                  <Ionicons name="calendar-outline" size={14} color={colors.greyMedium} />
+                  <Text style={[styles.fechaText, { color: colors.greyMedium }]}>
+                    {new Date(colaborador.fecha_vuelo).toLocaleDateString('es-ES')}
+                  </Text>
+                </View>
               )}
             </View>
-            
-            {colaborador.fecha_vuelo && (
-              <View style={styles.fechaContainer}>
-                <Ionicons name="calendar-outline" size={14} color={colors.greyMedium} />
-                <Text style={[styles.fechaText, { color: colors.greyMedium }]}>
-                  {new Date(colaborador.fecha_vuelo).toLocaleDateString('es-ES')}
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
 
-        {(colaborador.hora_entrada || colaborador.hora_salida) && (
-          <View style={styles.horariosContainer}>
-            {colaborador.hora_entrada && (
-              <View style={styles.horarioItem}>
-                <Ionicons name="log-in-outline" size={14} color={colors.success} />
-                <Text style={[styles.horarioText, { color: colors.success }]}>
-                  Entrada: {colaborador.hora_entrada}
-                </Text>
-              </View>
-            )}
-            {colaborador.hora_salida && (
-              <View style={styles.horarioItem}>
-                <Ionicons name="log-out-outline" size={14} color={colors.warning} />
-                <Text style={[styles.horarioText, { color: colors.warning }]}>
-                  Salida: {colaborador.hora_salida}
-                </Text>
-              </View>
-            )}
+            {/* ✅ INDICADOR DE ESTADO DE PROCESADO */}
+            <View style={styles.estadoBadgeContainer}>
+              {colaborador.procesado === 1 ? (
+                <View style={[styles.estadoBadge, { backgroundColor: colors.success }]}>
+                  <Ionicons name="checkmark-circle" size={12} color="white" />
+                  <Text style={styles.estadoBadgeText}>Completo</Text>
+                </View>
+              ) : (
+                <View style={[styles.estadoBadge, { backgroundColor: colors.warning }]}>
+                  <Ionicons name="time-outline" size={12} color="white" />
+                  <Text style={styles.estadoBadgeText}>Pendiente</Text>
+                </View>
+              )}
+            </View>
           </View>
-        )}
-      </Card.Content>
-    </Card>
+
+          {/* ✅ MOSTRAR MARCACIONES REALES CON PRIORIDAD */}
+          {tieneMarcaciones && (
+            <View style={styles.marcacionesContainer}>
+              <View style={styles.seccionHeader}>
+                <Ionicons name="finger-print" size={16} color={colors.success} />
+                <Text style={[styles.seccionTitulo, { color: colors.success }]}>
+                  Marcaciones Registradas
+                </Text>
+              </View>
+              
+              <View style={styles.marcacionesGrid}>
+                {colaborador.marcacion_entrada && (
+                  <View style={styles.marcacionItem}>
+                    <View style={[styles.marcacionIcono, { backgroundColor: colors.success }]}>
+                      <Ionicons name="log-in" size={12} color="white" />
+                    </View>
+                    <View style={styles.marcacionTexto}>
+                      <Text style={[styles.marcacionTipo, { color: colors.success }]}>
+                        Entrada
+                      </Text>
+                      <Text style={[styles.marcacionHora, { color: colors.text }]}>
+                        {colaborador.marcacion_entrada}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+                
+                {colaborador.marcacion_salida && (
+                  <View style={styles.marcacionItem}>
+                    <View style={[styles.marcacionIcono, { backgroundColor: colors.warning }]}>
+                      <Ionicons name="log-out" size={12} color="white" />
+                    </View>
+                    <View style={styles.marcacionTexto}>
+                      <Text style={[styles.marcacionTipo, { color: colors.warning }]}>
+                        Salida
+                      </Text>
+                      <Text style={[styles.marcacionHora, { color: colors.text }]}>
+                        {colaborador.marcacion_salida}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+          
+          {/* ✅ MOSTRAR HORAS PLANIFICADAS SOLO SI NO HAY MARCACIONES */}
+          {!tieneMarcaciones && tieneHorariosPlanificados && (
+            <View style={styles.planificadosContainer}>
+              <View style={styles.seccionHeader}>
+                <Ionicons name="calendar-outline" size={16} color={colors.greyMedium} />
+                <Text style={[styles.seccionTitulo, { color: colors.greyMedium }]}>
+                  Horario Planificado
+                </Text>
+              </View>
+              
+              <View style={styles.planificadosGrid}>
+                {colaborador.hora_entrada && (
+                  <View style={styles.planificadoItem}>
+                    <Ionicons name="time-outline" size={14} color={colors.greyMedium} />
+                    <Text style={[styles.planificadoTexto, { color: colors.greyMedium }]}>
+                      Entrada: {colaborador.hora_entrada}
+                    </Text>
+                  </View>
+                )}
+                
+                {colaborador.hora_salida && (
+                  <View style={styles.planificadoItem}>
+                    <Ionicons name="time-outline" size={14} color={colors.greyMedium} />
+                    <Text style={[styles.planificadoTexto, { color: colors.greyMedium }]}>
+                      Salida: {colaborador.hora_salida}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* ✅ MENSAJE CUANDO NO HAY INFORMACIÓN DE HORARIOS */}
+          {!tieneMarcaciones && !tieneHorariosPlanificados && (
+            <View style={styles.sinInformacionContainer}>
+              <Ionicons name="information-circle-outline" size={16} color={colors.greyMedium} />
+              <Text style={[styles.sinInformacionTexto, { color: colors.greyMedium }]}>
+                Sin información de horarios
+              </Text>
+            </View>
+          )}
+        </Card.Content>
+      </Card>
+
+      {/* Modal para mostrar imagen en grande */}
+      <ImageModal
+        visible={imageModalVisible}
+        imageSource={getImageSource()}
+        onClose={() => setImageModalVisible(false)}
+      />
+    </>
   );
 };
+
+
 
 export default function EventDetailsScreen() {
   const colorScheme = useColorScheme();
@@ -339,6 +505,82 @@ export default function EventDetailsScreen() {
           </Card.Content>
         </Card>
 
+        {/* Estadísticas de Marcaciones */}
+        {currentPlanification && (
+          <Card style={[styles.card, { backgroundColor: colors.surface }]}>
+            <Card.Content>
+              <View style={styles.statsHeader}>
+                <Ionicons name="stats-chart" size={20} color={colors.primary} />
+                <Text style={[styles.statsTitle, { color: colors.text }]}>
+                  Estadísticas de Asistencia
+                </Text>
+              </View>
+              
+                            <View style={styles.statsGrid}>
+                <View style={styles.statRow}>
+                  <View style={styles.statItem}>
+                    <View style={[styles.statIcon, { backgroundColor: colors.primary }]}>
+                      <Ionicons name="people" size={16} color="white" />
+                    </View>
+                    <View style={styles.statContent}>
+                      <Text style={[styles.statValue, { color: colors.text }]}>
+                        {currentPlanification.total_asignados}
+                      </Text>
+                      <Text style={[styles.statLabel, { color: colors.greyMedium }]}>
+                        Total Asignados
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.statItem}>
+                    <View style={[styles.statIcon, { backgroundColor: colors.success }]}>
+                      <Ionicons name="checkmark-circle" size={16} color="white" />
+                    </View>
+                    <View style={styles.statContent}>
+                      <Text style={[styles.statValue, { color: colors.text }]}>
+                        {currentPlanification.tripulantes.filter(t => t.procesado === 1).length}
+                      </Text>
+                      <Text style={[styles.statLabel, { color: colors.greyMedium }]}>
+                        Completados
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                
+                <View style={styles.statRow}>
+                  <View style={styles.statItem}>
+                    <View style={[styles.statIcon, { backgroundColor: colors.warning }]}>
+                      <Ionicons name="time" size={16} color="white" />
+                    </View>
+                    <View style={styles.statContent}>
+                      <Text style={[styles.statValue, { color: colors.text }]}>
+                        {currentPlanification.tripulantes.filter(t => t.procesado !== 1).length}
+                      </Text>
+                      <Text style={[styles.statLabel, { color: colors.greyMedium }]}>
+                        Pendientes
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.statItem}>
+                    <View style={[styles.statIcon, { backgroundColor: colors.primary }]}>
+                      <Ionicons name="finger-print" size={16} color="white" />
+                    </View>
+                    <View style={styles.statContent}>
+                      <Text style={[styles.statValue, { color: colors.text }]}>
+                        {currentPlanification.tripulantes.filter(t => t.marcacion_entrada || t.marcacion_salida).length}
+                      </Text>
+                      <Text style={[styles.statLabel, { color: colors.greyMedium }]}>
+                        Con Marcaciones
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </Card.Content>
+          </Card>
+        )}
+
         {/* Colaboradores Card - Ahora como grid de cards */}
         {currentPlanification ? (
           <Card style={[styles.card, { backgroundColor: colors.surface }]}>
@@ -408,6 +650,7 @@ export default function EventDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+  // ... estilos existentes mantener ...
   container: {
     flex: 1,
   },
@@ -430,7 +673,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 100, // Extra espacio al final
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -549,6 +792,8 @@ const styles = StyleSheet.create({
   colaboradoresGrid: {
     gap: 12,
   },
+
+  // ✅ ESTILOS PARA EL COMPONENTE COLABORADOR CARD
   colaboradorCard: {
     marginBottom: 8,
     borderRadius: 12,
@@ -564,6 +809,7 @@ const styles = StyleSheet.create({
   colaboradorHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginBottom: 12,
   },
   avatarContainer: {
     position: 'relative',
@@ -621,22 +867,115 @@ const styles = StyleSheet.create({
   fechaText: {
     fontSize: 12,
   },
-  horariosContainer: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+
+  // ✅ NUEVOS ESTILOS PARA ESTADO DE PROCESADO
+  estadoBadgeContainer: {
+    alignItems: 'flex-end',
+  },
+  estadoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
     gap: 4,
   },
-  horarioItem: {
+  estadoBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+
+  // ✅ ESTILOS PARA MARCACIONES REGISTRADAS
+  marcacionesContainer: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  seccionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 6,
+  },
+  seccionTitulo: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  marcacionesGrid: {
+    gap: 8,
+  },
+  marcacionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 8,
+  },
+  marcacionIcono: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  marcacionTexto: {
+    flex: 1,
+  },
+  marcacionTipo: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  marcacionHora: {
+    fontSize: 13,
+    fontWeight: '500',
+    fontFamily: 'monospace',
+  },
+
+  // ✅ ESTILOS PARA HORARIOS PLANIFICADOS
+  planificadosContainer: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  planificadosGrid: {
+    gap: 6,
+  },
+  planificadoItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  horarioText: {
+  planificadoTexto: {
     fontSize: 12,
     fontWeight: '500',
   },
+
+  // ✅ ESTILOS PARA SIN INFORMACIÓN
+  sinInformacionContainer: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  sinInformacionTexto: {
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+
+  // ✅ ESTILOS ADICIONALES EXISTENTES
   paisContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -651,5 +990,86 @@ const styles = StyleSheet.create({
   estrella: {
     fontSize: 16,
     marginLeft: 2,
+  },
+
+  // ✅ ESTILOS PARA EL MODAL DE IMAGEN
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  modalContent: {
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  modalImage: {
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  // ✅ ESTILOS PARA ESTADÍSTICAS
+  statsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  statsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  statsGrid: {
+    gap: 12,
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    borderRadius: 8,
+  },
+  statIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statContent: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });

@@ -18,6 +18,7 @@ import EventCard from '../../components/events/EventCard';
 import EventFilters from '../../components/events/EventFilters';
 import UserProfileCard from '../../components/user/UserProfileCard';
 import Colors from '../../constants/Colors';
+import { eventsService } from '../../services/eventsService';
 import { Event } from '../../types/api';
 
 // Global callback registry for camera interactions
@@ -57,6 +58,8 @@ export default function AttendanceScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showUserCard, setShowUserCard] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'todos' | 'presente' | 'futuro' | 'pasado'>('todos');
+  const [statsUpdateTrigger, setStatsUpdateTrigger] = useState(0);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
 
   // Permissions hooks
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -88,6 +91,50 @@ export default function AttendanceScreen() {
       clearError();
     };
   }, [clearError]);
+
+  // Update stats when events change or filter changes
+  useEffect(() => {
+    setStatsUpdateTrigger(prev => prev + 1);
+  }, [events, selectedFilter]);
+
+  // Cargar todos los eventos para las estadísticas
+  useEffect(() => {
+    const loadAllEventsForStats = async () => {
+      try {
+        // Cargar todos los eventos sin filtro para las estadísticas usando el servicio
+        const response = await eventsService.getEvents(false, undefined, 0, 100);
+        if (response.success && response.data) {
+          const eventsMapped = response.data.map((evento: any) => {
+            const fechaEvento = evento.fecha_evento || new Date().toISOString().split('T')[0];
+            const horaInicio = evento.hora_inicio || '08:00:00';
+            const horaFin = evento.hora_fin || '17:00:00';
+            const estatus = evento.estatus ?? 0;
+            const estado = estatus === 1 ? 'activo' : 'inactivo';
+            
+            return {
+              id: evento.id_evento,
+              nombre: evento.descripcion_evento || `Evento ${evento.id_evento}`,
+              descripcion: evento.descripcion_evento || undefined,
+              fecha_inicio: `${fechaEvento}T${horaInicio}`,
+              fecha_fin: `${fechaEvento}T${horaFin}`,
+              ubicacion: evento.descripcion_lugar || 'Ubicación no especificada',
+              organizador: evento.descripcion_departamento || undefined,
+              pais: evento.pais_nombre || undefined,
+              estado: estado as 'activo' | 'inactivo',
+              estatus: estatus,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+          });
+          setAllEvents(eventsMapped);
+        }
+      } catch (error) {
+        console.error('Error loading all events for stats:', error);
+      }
+    };
+    
+    loadAllEventsForStats();
+  }, []);
 
   const showModal = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setModalMessage(message);
@@ -135,6 +182,7 @@ export default function AttendanceScreen() {
     try {
       const filterParam = selectedFilter === 'todos' ? undefined : selectedFilter;
       await loadEvents(filterParam, true);
+      setStatsUpdateTrigger(prev => prev + 1);
     } catch (error) {
       console.error('Error refreshing events:', error);
     } finally {
@@ -207,9 +255,10 @@ export default function AttendanceScreen() {
         
         showModal(successMessage, 'success');
         
-        // Refresh events to get updated data
+        // Refresh events to get updated data and force stats update
         setTimeout(() => {
           loadEvents();
+          setStatsUpdateTrigger(prev => prev + 1);
         }, 1000);
         
       } else {
@@ -303,6 +352,33 @@ export default function AttendanceScreen() {
       handleLoadMore();
     }
   }, [handleLoadMore]);
+
+  const getLocalDateString = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Función para calcular eventos de hoy de manera más robusta
+  const getTodayEventsCount = useCallback(() => {
+    const today = getLocalDateString();
+    const eventsForStats = allEvents.length > 0 ? allEvents : events;
+    const todayEvents = eventsForStats.filter(event => {
+      const eventDate = event.fecha_inicio.split('T')[0];
+      return eventDate === today && event.estado === 'activo';
+    });
+    
+    return todayEvents.length;
+  }, [allEvents, events]);
+
+  // Función para calcular eventos activos
+  const getActiveEventsCount = useCallback(() => {
+    const eventsForStats = allEvents.length > 0 ? allEvents : events;
+    const activeEvents = eventsForStats.filter(event => event.estado === 'activo');
+    return activeEvents.length;
+  }, [allEvents, events]);
 
   // Show loading overlay when processing photo
   if (loading) {
@@ -425,7 +501,7 @@ export default function AttendanceScreen() {
             <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
               <Ionicons name="checkmark-circle" size={24} color={colors.success} />
               <Text style={[styles.statNumber, { color: colors.text }]}>
-                {events.filter(event => event.estado === 'activo').length}
+                {getActiveEventsCount()}
               </Text>
               <Text style={[styles.statLabel, { color: colors.greyMedium }]}>Activos</Text>
             </View>
@@ -436,11 +512,7 @@ export default function AttendanceScreen() {
             >
               <Ionicons name="today" size={24} color={colors.warning} />
               <Text style={[styles.statNumber, { color: colors.text }]}>
-                {events.filter(event => {
-                  const today = new Date().toISOString().split('T')[0];
-                  const eventDate = event.fecha_inicio.split('T')[0];
-                  return eventDate === today && event.estado === 'activo';
-                }).length}
+                {getTodayEventsCount()}
               </Text>
               <Text style={[styles.statLabel, { color: colors.greyMedium }]}>Hoy</Text>
             </TouchableOpacity>

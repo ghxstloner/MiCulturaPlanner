@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { Event } from '../../types/api';
@@ -27,15 +27,12 @@ export default function EventCard({
   const isToday = eventStartDate.toDateString() === now.toDateString();
   const isActive = event.estado === 'activo';
   const isPast = now > eventEndDate;
-
-  // Verificar disponibilidad de marcación al cargar el componente
-
   
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('es-ES', {
       hour: '2-digit',
       minute: '2-digit',
-      hour12: true
+      hour12: false
     });
   };
 
@@ -79,7 +76,7 @@ export default function EventCard({
   const getMarkingButtonStatus = () => {
     if (loading) {
       return {
-        text: 'Procesando...',
+        text: 'Cargando...',
         color: colors.greyMedium,
         icon: 'sync' as const,
         disabled: true
@@ -88,7 +85,7 @@ export default function EventCard({
 
     if (!isActive) {
       return {
-        text: 'Evento Inactivo',
+        text: 'Inactivo',
         color: colors.greyMedium,
         icon: 'ban-outline' as const,
         disabled: true
@@ -97,7 +94,7 @@ export default function EventCard({
 
     if (isPast) {
       return {
-        text: 'Evento Finalizado',
+        text: 'Finalizado',
         color: colors.greyMedium,
         icon: 'time-outline' as const,
         disabled: true
@@ -106,25 +103,56 @@ export default function EventCard({
 
     if (!isToday) {
       return {
-        text: 'No es Hoy',
+        text: 'No disponible',
         color: colors.greyMedium,
         icon: 'calendar-outline' as const,
         disabled: true
       };
     }
 
-
-
     return {
-      text: 'Marcar Asistencia',
+      text: 'Asistencia',
       color: colors.success,
       icon: 'camera' as const,
       disabled: false
     };
   };
 
-  const cardOpacity = isPast ? 0.8 : 1;
+  const cardOpacity = isPast ? 0.7 : 1;
   const buttonStatus = getMarkingButtonStatus();
+
+  // Estilos dinámicos para sombras
+  const cardShadowStyle = Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+    },
+    android: {
+      elevation: 3,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+    },
+  });
+
+  const buttonShadowStyle = Platform.select({
+    ios: {
+      shadowColor: buttonStatus.color,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 3,
+    },
+    android: {
+      elevation: 2,
+      shadowColor: buttonStatus.color,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 3,
+    },
+  });
 
   return (
     <View style={[
@@ -132,10 +160,11 @@ export default function EventCard({
       { 
         backgroundColor: colors.surface,
         opacity: cardOpacity,
-        borderLeftWidth: isActive ? 4 : 0,
+        borderLeftWidth: isActive ? 3 : 0,
         borderLeftColor: isActive ? colors.success : 'transparent',
-        borderColor: colors.border
-      }
+        borderColor: colors.border,
+      },
+      cardShadowStyle
     ]}>
       {/* Header */}
       <View style={styles.header}>
@@ -160,7 +189,7 @@ export default function EventCard({
             </Text>
           </View>
           {isActive && !isPast && isToday && (
-            <View style={[styles.liveIndicator, { backgroundColor: colors.success }]}>
+            <View style={[styles.liveIndicator, { backgroundColor: colors.primaryRed }]}>
               <View style={styles.pulseIndicator} />
               <Text style={styles.liveText}>HOY</Text>
             </View>
@@ -171,11 +200,13 @@ export default function EventCard({
       {/* Date and Time */}
       <View style={styles.dateTimeContainer}>
         <View style={styles.dateTimeItem}>
-          <Ionicons 
-            name={isToday ? "today" : "calendar-outline"} 
-            size={18} 
-            color={isToday ? colors.primaryRed : colors.primary} 
-          />
+          <View style={[styles.iconContainer, { backgroundColor: isToday ? colors.primaryRed + '15' : colors.primary + '15' }]}>
+            <Ionicons 
+              name={isToday ? "today" : "calendar-outline"} 
+              size={16} 
+              color={isToday ? colors.primaryRed : colors.primary} 
+            />
+          </View>
           <Text style={[
             styles.dateText, 
             { 
@@ -188,7 +219,9 @@ export default function EventCard({
         </View>
         
         <View style={styles.dateTimeItem}>
-          <Ionicons name="time-outline" size={18} color={colors.greyMedium} />
+          <View style={[styles.iconContainer, { backgroundColor: colors.greyMedium + '15' }]}>
+            <Ionicons name="time-outline" size={16} color={colors.greyMedium} />
+          </View>
           <Text style={[styles.timeText, { color: colors.textSecondary }]}>
             {formatTime(event.fecha_inicio)} - {formatTime(event.fecha_fin)}
           </Text>
@@ -197,7 +230,9 @@ export default function EventCard({
 
       {/* Location */}
       <View style={styles.locationContainer}>
-        <Ionicons name="location-outline" size={16} color={colors.greyMedium} />
+        <View style={[styles.iconContainer, { backgroundColor: colors.greyMedium + '15' }]}>
+          <Ionicons name="location-outline" size={16} color={colors.greyMedium} />
+        </View>
         <Text style={[styles.locationText, { color: colors.textSecondary }]} numberOfLines={1}>
           {event.ubicacion}
         </Text>
@@ -214,13 +249,19 @@ export default function EventCard({
       <View style={styles.actions}>
         <TouchableOpacity
           onPress={() => onViewDetails(event.id)}
-          style={[styles.detailsButton, { borderColor: colors.border }]}
+          style={[
+            styles.detailsButton, 
+            { 
+              borderColor: colors.primary,
+              backgroundColor: colors.primary + '08' 
+            }
+          ]}
           disabled={loading}
           activeOpacity={0.7}
         >
-          <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
+          <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
           <Text style={[styles.detailsButtonText, { color: colors.primary }]}>
-            Ver Detalles
+            Detalles
           </Text>
         </TouchableOpacity>
         
@@ -231,14 +272,15 @@ export default function EventCard({
             styles.attendanceButton,
             { 
               backgroundColor: buttonStatus.color,
-              opacity: buttonStatus.disabled ? 0.7 : 1
-            }
+              opacity: buttonStatus.disabled ? 0.6 : 1,
+            },
+            !buttonStatus.disabled && buttonShadowStyle
           ]}
           activeOpacity={0.8}
         >
           <Ionicons 
             name={buttonStatus.icon} 
-            size={16} 
+            size={18} 
             color="#FFFFFF" 
           />
           <Text style={styles.attendanceButtonText}>
@@ -252,21 +294,17 @@ export default function EventCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: 16,
+    marginBottom: 20,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    marginHorizontal: 4, // Para que las sombras se vean completas
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 18,
   },
   titleContainer: {
     flex: 1,
@@ -274,32 +312,33 @@ const styles = StyleSheet.create({
   },
   eventTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
+    fontWeight: '700',
+    marginBottom: 6,
     lineHeight: 24,
   },
   organizador: {
     fontSize: 14,
     fontWeight: '500',
+    opacity: 0.8,
   },
   statusContainer: {
     alignItems: 'flex-end',
-    gap: 6,
+    gap: 8,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   statusText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   liveIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
     gap: 4,
@@ -317,20 +356,25 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   dateTimeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    gap: 16,
+    gap: 12,
+    marginBottom: 14,
   },
   dateTimeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    gap: 8,
+    gap: 12,
+  },
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dateText: {
     fontSize: 15,
     flex: 1,
+    fontWeight: '600',
   },
   timeText: {
     fontSize: 14,
@@ -340,8 +384,8 @@ const styles = StyleSheet.create({
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    gap: 8,
+    marginBottom: 14,
+    gap: 12,
   },
   locationText: {
     fontSize: 14,
@@ -351,46 +395,44 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 20,
+    fontStyle: 'italic',
+    opacity: 0.9,
   },
   actions: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 4,
   },
   detailsButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1.5,
     gap: 6,
+    minHeight: 48,
   },
   detailsButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   attendanceButton: {
-    flex: 1,
+    flex: 1.2, // Ligeramente más ancho para el texto
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12, // Menos padding horizontal
     borderRadius: 12,
     gap: 6,
-    shadowColor: '#005293',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    minHeight: 48,
   },
   attendanceButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
 });
