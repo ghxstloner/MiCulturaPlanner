@@ -5,6 +5,7 @@ export interface User {
   is_admin: boolean;
   id_aerolinea?: number;
   active?: string;
+  picture?: string;
 }
 
 export interface AttendanceRecord {

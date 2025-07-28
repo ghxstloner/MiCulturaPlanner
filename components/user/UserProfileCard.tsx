@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react'; // Añadir useState
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Button, Card, Chip } from 'react-native-paper';
 
 import Colors from '../../constants/Colors';
@@ -15,6 +15,7 @@ interface UserProfileCardProps {
 export default function UserProfileCard({ user, onClose }: UserProfileCardProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
+  const [imageError, setImageError] = useState(false); // Estado para manejar errores de imagen
 
   if (!user) {
     return (
@@ -31,22 +32,44 @@ export default function UserProfileCard({ user, onClose }: UserProfileCardProps)
     );
   }
 
+  // Función para renderizar el avatar
+  const renderAvatar = () => {
+    // Si tiene imagen, no hubo error y no está vacía
+    if (user.picture && user.picture.trim() !== '' && !imageError) {
+      return (
+        <Image 
+          source={{ uri: `data:image/jpeg;base64,${user.picture}` }} 
+          style={styles.avatarImage}
+          onError={(error) => {
+            console.log('Error cargando imagen del usuario:', error);
+            setImageError(true); // Marcar que hubo error para mostrar fallback
+          }}
+        />
+      );
+    }
+    
+    // Avatar con iniciales por defecto (si no hay imagen o hubo error)
+    return (
+      <Avatar.Text 
+        size={80} 
+        label={(user.name?.substring(0, 2) || 'US').toUpperCase()} 
+        style={{ backgroundColor: colors.primary }}
+        labelStyle={{ color: '#FFFFFF', fontSize: 24, fontWeight: 'bold' }}
+      />
+    );
+  };
+
   return (
     <Card style={[styles.card, { backgroundColor: colors.surface }]}>
       <Card.Content style={styles.content}>
         <View style={styles.header}>
-          <Avatar.Text 
-            size={80} 
-            label={user.name?.substring(0, 2).toUpperCase() || 'US'} 
-            style={{ backgroundColor: colors.primary }}
-            labelStyle={{ color: '#FFFFFF', fontSize: 24, fontWeight: 'bold' }}
-          />
+          {renderAvatar()}
           <View style={styles.headerInfo}>
             <Text style={[styles.userName, { color: colors.text }]}>
-              {user.name}
+              {user.name || 'Sin nombre'}
             </Text>
             <Text style={[styles.userLogin, { color: colors.greyMedium }]}>
-              @{user.login}
+              @{user.login || 'sin-login'}
             </Text>
             {user.is_admin && (
               <Chip 
@@ -73,19 +96,19 @@ export default function UserProfileCard({ user, onClose }: UserProfileCardProps)
             </View>
           </View>
 
-          {user.id_aerolinea && (
+          {user.id_aerolinea ? (
             <View style={styles.infoItem}>
               <Ionicons name="business" size={20} color={colors.primary} />
               <View style={styles.infoTextContainer}>
                 <Text style={[styles.infoLabel, { color: colors.greyMedium }]}>
-                  ID Aerolínea
+                  Departamento
                 </Text>
                 <Text style={[styles.infoValue, { color: colors.text }]}>
-                  {user.id_aerolinea}
+                  {String(user.id_aerolinea)}
                 </Text>
               </View>
             </View>
-          )}
+          ) : null}
 
           <View style={styles.infoItem}>
             <Ionicons 
@@ -165,6 +188,12 @@ const styles = StyleSheet.create({
   userLogin: {
     fontSize: 14,
     fontStyle: 'italic',
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f0f0f0',
   },
   infoSection: {
     marginBottom: 24,
