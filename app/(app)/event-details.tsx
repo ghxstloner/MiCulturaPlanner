@@ -40,7 +40,7 @@ export default function EventDetailsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right', 'bottom']}>
         <View style={styles.loadingContainer}>
           <Ionicons name="sync" size={48} color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.text }]}>
@@ -56,7 +56,7 @@ export default function EventDetailsScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right', 'bottom']}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color={colors.error} />
           <Text style={[styles.errorTitle, { color: colors.text }]}>
@@ -95,7 +95,7 @@ export default function EventDetailsScreen() {
 
   if (!currentEvent) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right', 'bottom']}>
         <View style={styles.errorContainer}>
           <Ionicons name="document-outline" size={48} color={colors.greyMedium} />
           <Text style={[styles.errorTitle, { color: colors.text }]}>
@@ -118,14 +118,10 @@ export default function EventDetailsScreen() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'en_curso':
+      case 'activo':
         return colors.success;
-      case 'programado':
-        return colors.primary;
-      case 'finalizado':
+      case 'inactivo':
         return colors.greyMedium;
-      case 'cancelado':
-        return colors.error;
       default:
         return colors.greyMedium;
     }
@@ -133,14 +129,10 @@ export default function EventDetailsScreen() {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'en_curso':
-        return 'En Curso';
-      case 'programado':
-        return 'Programado';
-      case 'finalizado':
-        return 'Finalizado';
-      case 'cancelado':
-        return 'Cancelado';
+      case 'activo':
+        return 'Activo';
+      case 'inactivo':
+        return 'Inactivo';
       default:
         return status;
     }
@@ -150,7 +142,7 @@ export default function EventDetailsScreen() {
   const colaboradoresInactivos = currentPlanification?.tripulantes.filter(t => !t.activo).length || 0;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right', 'bottom']}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         
         {/* Event Info Card */}
@@ -225,6 +217,29 @@ export default function EventDetailsScreen() {
                 </View>
               )}
 
+              {currentEvent.pais && (
+                <View style={styles.infoItem}>
+                  <Ionicons name="flag" size={20} color={colors.primary} />
+                  <View style={styles.infoTextContainer}>
+                    <Text style={[styles.infoLabel, { color: colors.greyMedium }]}>
+                      País
+                    </Text>
+                    <View style={styles.paisContainer}>
+                      <Text style={[styles.infoValue, { color: colors.text }]}>
+                        {currentEvent.pais}
+                      </Text>
+                      {currentEvent.pais?.toLowerCase().includes('panamá') || currentEvent.pais?.toLowerCase().includes('panama') ? (
+                        <View style={styles.estrellasPanama}>
+                          <Text style={styles.estrella}>⭐</Text>
+                          <Text style={styles.estrella}>⭐</Text>
+                          <Text style={styles.estrella}>⭐</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+                </View>
+              )}
+
               <View style={styles.infoItem}>
                 <Ionicons name="calendar-outline" size={20} color={colors.secondary} />
                 <View style={styles.infoTextContainer}>
@@ -256,55 +271,41 @@ export default function EventDetailsScreen() {
                   >
                     {currentPlanification.total_asignados} total
                   </Chip>
-                  <Chip 
-                    style={{ backgroundColor: colors.success, marginRight: 8 }}
-                    textStyle={{ color: 'white', fontSize: 12 }}
-                    compact
-                  >
-                    {colaboradoresActivos} activos
-                  </Chip>
-                  {colaboradoresInactivos > 0 && (
-                    <Chip 
-                      style={{ backgroundColor: colors.error }}
-                      textStyle={{ color: 'white', fontSize: 12 }}
-                      compact
-                    >
-                      {colaboradoresInactivos} inactivos
-                    </Chip>
-                  )}
                 </View>
               </View>
 
               {currentPlanification.tripulantes.length > 0 ? (
                 <DataTable>
                   <DataTable.Header>
-                    <DataTable.Title>Nombre</DataTable.Title>
-                    <DataTable.Title>Crew ID</DataTable.Title>
-                    <DataTable.Title>Estado</DataTable.Title>
+                    <DataTable.Title>Nombre Completo</DataTable.Title>
+                    <DataTable.Title>Posición</DataTable.Title>
+                    <DataTable.Title>Cédula</DataTable.Title>
+                    <DataTable.Title>Fecha</DataTable.Title>
                   </DataTable.Header>
 
                   {currentPlanification.tripulantes.map((colaborador) => (
                     <DataTable.Row key={colaborador.id_tripulante}>
-                      <DataTable.Cell>
-                        <Text style={{ color: colors.text }}>
+                      <DataTable.Cell style={{ flex: 2 }}>
+                        <Text style={{ color: colors.text, fontWeight: '500' }}>
                           {colaborador.nombres} {colaborador.apellidos}
                         </Text>
                       </DataTable.Cell>
-                      <DataTable.Cell>
-                        <Text style={{ color: colors.text, fontFamily: 'monospace' }}>
-                          {colaborador.crew_id}
+                      <DataTable.Cell style={{ flex: 1 }}>
+                        <View style={styles.posicionContainer}>
+                          <Text style={[styles.posicionText, { color: colors.primary }]}>
+                            {colaborador.crew_id}
+                          </Text>
+                        </View>
+                      </DataTable.Cell>
+                      <DataTable.Cell style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontSize: 12 }}>
+                          {colaborador.cedula || 'N/A'}
                         </Text>
                       </DataTable.Cell>
-                      <DataTable.Cell>
-                        <Chip 
-                          style={{ 
-                            backgroundColor: colaborador.activo ? colors.success : colors.error 
-                          }}
-                          textStyle={{ color: 'white', fontSize: 10 }}
-                          compact
-                        >
-                          {colaborador.activo ? 'Activo' : 'Inactivo'}
-                        </Chip>
+                      <DataTable.Cell style={{ flex: 1 }}>
+                        <Text style={{ color: colors.greyMedium, fontSize: 12 }}>
+                          {colaborador.fecha_vuelo ? new Date(colaborador.fecha_vuelo).toLocaleDateString('es-ES') : 'N/A'}
+                        </Text>
                       </DataTable.Cell>
                     </DataTable.Row>
                   ))}
@@ -482,5 +483,33 @@ const styles = StyleSheet.create({
   },
   backButton: {
     borderRadius: 8,
+  },
+  paisContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flex: 1,
+  },
+  estrellasPanama: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  estrella: {
+    fontSize: 16,
+    marginLeft: 2,
+  },
+  posicionContainer: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignItems: 'center',
+    minWidth: 60,
+  },
+  posicionText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    fontFamily: 'monospace',
   },
 });

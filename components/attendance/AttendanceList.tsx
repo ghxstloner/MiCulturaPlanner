@@ -45,7 +45,7 @@ export default function AttendanceList({ showToday = false, limit = 10 }: Attend
                 {item.nombres} {item.apellidos}
               </Text>
               <Text style={[styles.crewId, { color: colors.greyMedium }]}>
-                {item.crew_id}
+                No. Posición: {item.crew_id}
               </Text>
             </View>
             

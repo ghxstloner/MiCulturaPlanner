@@ -5,7 +5,7 @@ import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { Event } from '../../types/api';
 
-type FilterType = 'todos' | 'hoy' | 'esta_semana' | 'programados' | 'en_curso' | 'finalizados';
+type FilterType = 'todos' | 'presente' | 'futuro' | 'pasado';
 
 interface EventFiltersProps {
   selectedFilter: FilterType;
@@ -31,29 +31,26 @@ export default function EventFilters({
 
   // Función para contar eventos por filtro
   const getEventCount = (filterType: FilterType): number => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const oneWeekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const today = new Date().toISOString().split('T')[0];
 
     switch (filterType) {
       case 'todos':
         return events.length;
-      case 'hoy':
+      case 'presente':
         return events.filter(event => {
-          const eventDate = new Date(event.fecha_inicio);
-          return eventDate >= today && eventDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
+          const eventDate = event.fecha_inicio.split('T')[0];
+          return eventDate === today;
         }).length;
-      case 'esta_semana':
+      case 'futuro':
         return events.filter(event => {
-          const eventDate = new Date(event.fecha_inicio);
-          return eventDate >= today && eventDate <= oneWeekFromNow;
+          const eventDate = event.fecha_inicio.split('T')[0];
+          return eventDate > today;
         }).length;
-      case 'programados':
-        return events.filter(event => event.estado === 'programado').length;
-      case 'en_curso':
-        return events.filter(event => event.estado === 'en_curso').length;
-      case 'finalizados':
-        return events.filter(event => event.estado === 'finalizado').length;
+      case 'pasado':
+        return events.filter(event => {
+          const eventDate = event.fecha_inicio.split('T')[0];
+          return eventDate < today;
+        }).length;
       default:
         return 0;
     }
@@ -61,11 +58,9 @@ export default function EventFilters({
 
   const filterOptions: FilterOption[] = [
     { key: 'todos', label: 'Todos', count: getEventCount('todos') },
-    { key: 'hoy', label: 'Hoy', count: getEventCount('hoy') },
-    { key: 'esta_semana', label: 'Esta Semana', count: getEventCount('esta_semana') },
-    { key: 'programados', label: 'Programados', count: getEventCount('programados') },
-    { key: 'en_curso', label: 'En Curso', count: getEventCount('en_curso') },
-    { key: 'finalizados', label: 'Finalizados', count: getEventCount('finalizados') },
+    { key: 'presente', label: 'Hoy', count: getEventCount('presente') },
+    { key: 'futuro', label: 'Próximos', count: getEventCount('futuro') },
+    { key: 'pasado', label: 'Pasados', count: getEventCount('pasado') },
   ];
 
   const FilterChip = ({ option, isSelected }: { option: FilterOption; isSelected: boolean }) => (

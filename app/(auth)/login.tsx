@@ -152,7 +152,7 @@ export default function LoginScreen() {
                 />
               </View>
               <Text style={[styles.appTitle, { color: colors.primary }]}>
-                MiCultura
+                MiCultura Planner
               </Text>
               <Text style={[styles.appSubtitle, { color: colors.textSecondary }]}>
                 Sistema de Asistencia Digital
@@ -278,8 +278,8 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   logoWrapper: {
-    width: 120,
-    height: 120,
+    width: 220,
+    height: 220,
     marginBottom: 24,
     alignItems: 'center',
     justifyContent: 'center',

@@ -8,13 +8,17 @@ interface EventsState {
   currentPlanification: EventPlanification | null;
   loading: boolean;
   error: string | null;
+  hasMoreEvents: boolean;
+  currentFilter: string | null;
   
   // Actions
-  loadEvents: () => Promise<void>;
+  loadEvents: (filtro?: string, refresh?: boolean) => Promise<void>;
+  loadMoreEvents: () => Promise<void>;
   loadEventDetail: (eventId: number) => Promise<void>;
   loadEventPlanification: (eventId: number) => Promise<void>;
   markAttendance: (eventId: number, photoUri: string) => Promise<FacialRecognitionResponse>;
   clearError: () => void;
+  setFilter: (filter: string | null) => void;
 }
 
 // Función para mapear evento del backend al frontend
@@ -22,6 +26,10 @@ const mapEventoBackendToFrontend = (evento: EventoBackend): Event => {
   const fechaEvento = evento.fecha_evento || new Date().toISOString().split('T')[0];
   const horaInicio = evento.hora_inicio || '08:00:00';
   const horaFin = evento.hora_fin || '17:00:00';
+  
+  // Determinar estado basado en estatus del backend (1 = activo, 0 = inactivo)
+  const estatus = evento.estatus ?? 0;
+  const estado = estatus === 1 ? 'activo' : 'inactivo';
   
   return {
     id: evento.id_evento,
@@ -31,25 +39,12 @@ const mapEventoBackendToFrontend = (evento: EventoBackend): Event => {
     fecha_fin: `${fechaEvento}T${horaFin}`,
     ubicacion: evento.descripcion_lugar || 'Ubicación no especificada',
     organizador: evento.descripcion_departamento || undefined,
-    estado: determineEventStatus(fechaEvento, horaInicio, horaFin),
+    pais: evento.pais_nombre || undefined,
+    estado: estado,
+    estatus: estatus,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
-};
-
-// Función para determinar el estado del evento
-const determineEventStatus = (fecha: string, horaInicio: string, horaFin: string): Event['estado'] => {
-  const now = new Date();
-  const fechaInicio = new Date(`${fecha}T${horaInicio}`);
-  const fechaFin = new Date(`${fecha}T${horaFin}`);
-  
-  if (now < fechaInicio) {
-    return 'programado';
-  } else if (now >= fechaInicio && now <= fechaFin) {
-    return 'en_curso';
-  } else {
-    return 'finalizado';
-  }
 };
 
 // Función para mapear planificación del backend al frontend
@@ -64,6 +59,9 @@ const mapPlanificacionBackendToFrontend = (planificacion: PlanificacionBackend[]
     cargo: undefined,
     activo: plan.estatus === '1' || plan.estatus === 'activo',
     id_tripulante: plan.id_planificacion,
+    fecha_vuelo: plan.fecha_vuelo || undefined,
+    hora_entrada: plan.hora_entrada || undefined,
+    hora_salida: plan.hora_salida || undefined,
   }));
 
   return {
@@ -73,31 +71,59 @@ const mapPlanificacionBackendToFrontend = (planificacion: PlanificacionBackend[]
   };
 };
 
+// Función para verificar si se puede marcar asistencia
+export const canMarkAttendance = (event: Event): boolean => {
+  if (event.estado !== 'activo' || event.estatus !== 1) {
+    return false;
+  }
+  
+  // Verificar que el evento sea hoy
+  const today = new Date().toISOString().split('T')[0];
+  const eventDate = event.fecha_inicio.split('T')[0];
+  
+  if (eventDate !== today) {
+    return false;
+  }
+  
+  // Verificar si el evento ya finalizó
+  const now = new Date();
+  const eventEndDate = new Date(event.fecha_fin);
+  
+  return now <= eventEndDate;
+};
+
 export const useEventsStore = create<EventsState>((set, get) => ({
   events: [],
   currentEvent: null,
   currentPlanification: null,
   loading: false,
   error: null,
+  hasMoreEvents: true,
+  currentFilter: null,
 
-  loadEvents: async () => {
+  loadEvents: async (filtro?: string, refresh = true) => {
     set({ loading: true, error: null });
     
     try {
-      const response = await eventsService.getEvents();
+      const state = get();
+      const offset = refresh ? 0 : state.events.length;
+      const response = await eventsService.getEvents(false, filtro, offset, 20);
       
       if (response.success && response.data) {
         const eventsMapped = response.data.map(mapEventoBackendToFrontend);
         set({ 
-          events: eventsMapped,
+          events: refresh ? eventsMapped : [...state.events, ...eventsMapped],
           loading: false,
-          error: null
+          error: null,
+          hasMoreEvents: eventsMapped.length === 20,
+          currentFilter: filtro || null
         });
       } else {
         set({ 
-          events: [],
+          events: refresh ? [] : state.events,
           loading: false,
-          error: response.message || 'Error al cargar eventos'
+          error: response.message || 'Error al cargar eventos',
+          hasMoreEvents: false
         });
       }
     } catch (error: any) {
@@ -107,6 +133,13 @@ export const useEventsStore = create<EventsState>((set, get) => ({
         error: error.message || 'Error de conexión con el servidor'
       });
     }
+  },
+
+  loadMoreEvents: async () => {
+    const state = get();
+    if (state.loading || !state.hasMoreEvents) return;
+    
+    await state.loadEvents(state.currentFilter, false);
   },
 
   loadEventDetail: async (eventId: number) => {
@@ -191,5 +224,12 @@ export const useEventsStore = create<EventsState>((set, get) => ({
 
   clearError: () => {
     set({ error: null });
+  },
+
+  setFilter: (filter: string | null) => {
+    const state = get();
+    if (state.currentFilter !== filter) {
+      state.loadEvents(filter, true);
+    }
   },
 }));

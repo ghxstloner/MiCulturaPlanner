@@ -7,8 +7,17 @@ interface MarkAttendanceRequest {
 }
 
 export class EventsService {
-  async getEvents(activosSolo: boolean = true): Promise<EventsResponse> {
-    return apiClient.get(`/eventos/?activos_solo=${activosSolo}`);
+  async getEvents(
+    activosSolo: boolean = false, 
+    filtroFecha?: string, 
+    offset: number = 0, 
+    limit: number = 20
+  ): Promise<EventsResponse> {
+    let url = `/eventos/?activos_solo=${activosSolo}&offset=${offset}&limit=${limit}`;
+    if (filtroFecha) {
+      url += `&filtro_fecha=${filtroFecha}`;
+    }
+    return apiClient.get(url);
   }
 
   async getEventDetail(idEvento: number): Promise<StandardResponse<EventoBackend>> {

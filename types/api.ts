@@ -32,6 +32,7 @@ export interface EventoBackend {
   descripcion_departamento: string | null;
   pais_nombre: string | null;
   id_departamento?: number;
+  estatus?: number; // 1 = activo, 0 = inactivo
 }
 
 // Interface mapeada para el frontend
@@ -43,7 +44,9 @@ export interface Event {
   fecha_fin: string;
   ubicacion: string;
   organizador?: string;
-  estado: 'programado' | 'en_curso' | 'finalizado' | 'cancelado';
+  pais?: string;
+  estado: 'activo' | 'inactivo'; // Cambiado de estados complejos a simple activo/inactivo
+  estatus: number; // Campo original del backend
   created_at: string;
   updated_at: string;
 }
@@ -84,6 +87,10 @@ export interface Tripulante {
   cargo?: string;
   activo: boolean;
   id_tripulante: number;
+  // Nuevos campos para mostrar en la planificación
+  fecha_vuelo?: string;
+  hora_entrada?: string;
+  hora_salida?: string;
 }
 
 export interface FacialRecognitionResponse {

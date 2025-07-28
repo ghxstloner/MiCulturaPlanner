@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/store/authStore';
-import { useEventsStore } from '@/store/eventsStore';
+import { canMarkAttendance, useEventsStore } from '@/store/eventsStore';
 import AttendanceModal from '../../components/attendance/AttendanceModal';
 import CulturalHeader from '../../components/common/CulturalHeader';
 import EventCard from '../../components/events/EventCard';
@@ -40,9 +40,13 @@ export default function AttendanceScreen() {
     events, 
     loading: eventsLoading, 
     error: eventsError,
+    hasMoreEvents,
     loadEvents,
+    loadMoreEvents,
     markAttendance,
-    clearError
+    clearError,
+    setFilter,
+    currentFilter
   } = useEventsStore();
 
   // Local state
@@ -53,7 +57,7 @@ export default function AttendanceScreen() {
   const [modalType, setModalType] = useState<'success' | 'error'>('success');
   const [refreshing, setRefreshing] = useState(false);
   const [showUserCard, setShowUserCard] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState<'todos' | 'hoy' | 'esta_semana' | 'programados' | 'en_curso' | 'finalizados'>('todos');
+  const [selectedFilter, setSelectedFilter] = useState<'todos' | 'presente' | 'futuro' | 'pasado'>('todos');
 
   // Permissions hooks
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -130,16 +134,28 @@ export default function AttendanceScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await loadEvents();
+      const filterParam = selectedFilter === 'todos' ? undefined : selectedFilter;
+      await loadEvents(filterParam, true);
     } catch (error) {
       console.error('Error refreshing events:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [loadEvents]);
+  }, [loadEvents, selectedFilter]);
 
   const handleMarkAttendance = async (eventId: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Verificar si el evento permite marcaciones
+    const event = events.find(e => e.id === eventId);
+    if (!event || !canMarkAttendance(event)) {
+      Alert.alert(
+        "Marcación No Disponible",
+        "Este evento no permite marcaciones en este momento.",
+        [{ text: "Entendido", style: "default" }]
+      );
+      return;
+    }
     
     // Check permissions first
     if (!await checkRequiredPermissions()) return;
@@ -242,42 +258,27 @@ export default function AttendanceScreen() {
     setShowUserCard(!showUserCard);
   };
 
-  // Función para filtrar eventos
-  const getFilteredEvents = (): Event[] => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const oneWeekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-    switch (selectedFilter) {
-      case 'todos':
-        return events;
-      case 'hoy':
-        return events.filter(event => {
-          const eventDate = new Date(event.fecha_inicio);
-          return eventDate >= today && eventDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
-        });
-      case 'esta_semana':
-        return events.filter(event => {
-          const eventDate = new Date(event.fecha_inicio);
-          return eventDate >= today && eventDate <= oneWeekFromNow;
-        });
-      case 'programados':
-        return events.filter(event => event.estado === 'programado');
-      case 'en_curso':
-        return events.filter(event => event.estado === 'en_curso');
-      case 'finalizados':
-        return events.filter(event => event.estado === 'finalizado');
-      default:
-        return events;
-    }
-  };
-
-  const filteredEvents = getFilteredEvents();
-
   const handleFilterChange = (filter: typeof selectedFilter) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedFilter(filter);
+    const filterParam = filter === 'todos' ? undefined : filter;
+    setFilter(filterParam);
   };
+
+  const handleLoadMore = useCallback(() => {
+    if (hasMoreEvents && !eventsLoading) {
+      loadMoreEvents();
+    }
+  }, [hasMoreEvents, eventsLoading, loadMoreEvents]);
+
+  const handleScroll = useCallback((event: any) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 100;
+    
+    if (isCloseToBottom) {
+      handleLoadMore();
+    }
+  }, [handleLoadMore]);
 
   // Show loading overlay when processing photo
   if (loading) {
@@ -376,6 +377,8 @@ export default function AttendanceScreen() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -392,26 +395,30 @@ export default function AttendanceScreen() {
             <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
               <Ionicons name="calendar" size={24} color={colors.primary} />
               <Text style={[styles.statNumber, { color: colors.text }]}>{events.length}</Text>
-              <Text style={[styles.statLabel, { color: colors.greyMedium }]}>Eventos Activos</Text>
+              <Text style={[styles.statLabel, { color: colors.greyMedium }]}>Total Eventos</Text>
             </View>
             
             <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
               <Ionicons name="checkmark-circle" size={24} color={colors.success} />
               <Text style={[styles.statNumber, { color: colors.text }]}>
-                {events.filter(event => event.estado === 'en_curso').length}
+                {events.filter(event => event.estado === 'activo').length}
               </Text>
-              <Text style={[styles.statLabel, { color: colors.greyMedium }]}>En Curso</Text>
+              <Text style={[styles.statLabel, { color: colors.greyMedium }]}>Activos</Text>
             </View>
             
             <TouchableOpacity 
               style={[styles.statCard, { backgroundColor: colors.surface }]}
               onPress={() => router.push('/(app)/marcaciones' as Href)}
             >
-              <Ionicons name="checkmark-done" size={24} color={colors.success} />
+              <Ionicons name="today" size={24} color={colors.warning} />
               <Text style={[styles.statNumber, { color: colors.text }]}>
-                {events.reduce((total, event) => total + (event.estado === 'en_curso' ? 1 : 0), 0)}
+                {events.filter(event => {
+                  const today = new Date().toISOString().split('T')[0];
+                  const eventDate = event.fecha_inicio.split('T')[0];
+                  return eventDate === today && event.estado === 'activo';
+                }).length}
               </Text>
-              <Text style={[styles.statLabel, { color: colors.greyMedium }]}>Ver Marcaciones</Text>
+              <Text style={[styles.statLabel, { color: colors.greyMedium }]}>Hoy</Text>
             </TouchableOpacity>
           </View>
 
@@ -436,32 +443,47 @@ export default function AttendanceScreen() {
                   Cargando eventos desde el servidor...
                 </Text>
               </View>
-            ) : filteredEvents.length === 0 ? (
+            ) : events.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Ionicons name="calendar-outline" size={48} color={colors.greyMedium} />
                 <Text style={[styles.emptyText, { color: colors.greyMedium }]}>
-                  {events.length === 0 
-                    ? "No hay eventos activos programados"
-                    : `No hay eventos ${selectedFilter === 'todos' ? '' : `para "${selectedFilter}"`}`
-                  }
+                  No hay eventos disponibles
                 </Text>
                 <Text style={[styles.emptySubtext, { color: colors.greyMedium }]}>
-                  {events.length === 0 
-                    ? "Desliza hacia abajo para actualizar"
-                    : "Prueba con otro filtro o actualiza la lista"
-                  }
+                  Desliza hacia abajo para actualizar
                 </Text>
               </View>
             ) : (
-              filteredEvents.map((event: Event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  onMarkAttendance={handleMarkAttendance}
-                  onViewDetails={handleViewDetails}
-                  loading={processingEventId === event.id}
-                />
-              ))
+              <>
+                {events.map((event: Event) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    onMarkAttendance={handleMarkAttendance}
+                    onViewDetails={handleViewDetails}
+                    loading={processingEventId === event.id}
+                  />
+                ))}
+                
+                {/* Load More Indicator */}
+                {hasMoreEvents && (
+                  <View style={styles.loadMoreContainer}>
+                    <Ionicons name="ellipsis-horizontal" size={24} color={colors.greyMedium} />
+                    <Text style={[styles.loadMoreText, { color: colors.greyMedium }]}>
+                      Desliza para cargar más eventos
+                    </Text>
+                  </View>
+                )}
+                
+                {eventsLoading && events.length > 0 && (
+                  <View style={styles.loadMoreContainer}>
+                    <Ionicons name="sync" size={24} color={colors.primary} />
+                    <Text style={[styles.loadMoreText, { color: colors.greyMedium }]}>
+                      Cargando más eventos...
+                    </Text>
+                  </View>
+                )}
+              </>
             )}
           </View>
 
@@ -620,5 +642,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'left',
     lineHeight: 20,
+  },
+  loadMoreContainer: {
+    padding: 20,
+    alignItems: 'center',
+    gap: 8,
+  },
+  loadMoreText: {
+    fontSize: 14,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
