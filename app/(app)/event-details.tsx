@@ -67,7 +67,7 @@ const ColaboradorCard = ({ colaborador }: { colaborador: any }) => {
     if (colaborador.imagen && colaborador.imagen.trim() !== '') {
       // Imagen remota si existe
       return { 
-        uri: `http://159.223.166.80:8000/api/v1/crew/${colaborador.crew_id}/${colaborador.imagen}` 
+        uri: `${process.env.EXPO_PUBLIC_API_URL}/crew/${colaborador.crew_id}/${colaborador.imagen}` 
       };
     } else {
       // Imagen local por defecto

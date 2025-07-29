@@ -64,7 +64,7 @@ export default function EmpleadosScreen() {
   const getImageSource = (imagen: string | null, crew_id: string) => {
     if (imagen && imagen.trim() !== '') {
       return { 
-        uri: `https://echcarst.myscriptcase.com/scriptcase9/file/img/Cultura/${crew_id}/${imagen}` 
+        uri: `${process.env.EXPO_PUBLIC_IMAGE_URL}/${crew_id}/${imagen}` 
       };
     } else {
       return require('../../../assets/images/default-avatar.png');
