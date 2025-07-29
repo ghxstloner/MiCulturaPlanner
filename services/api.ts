@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // "http://192.168.2.13:8000/api/v1"
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://159.223.166.80:8000/api/v1";
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://micultura.amaxoniaerp.com/api/v1";
 
 class ApiClient {
   private baseURL: string;
