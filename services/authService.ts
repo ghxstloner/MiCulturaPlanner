@@ -3,25 +3,24 @@ import { LoginResponse, StandardResponse, UserInfo } from '../types/api';
 import { apiClient } from './api';
 
 export class AuthService {
-  // ✅ MÉTODO NUEVO para limpiar campos pesados
   private cleanUserInfo(userInfo: any): UserInfo {
-    // Elimina cualquier campo que pueda contener BLOBs o datos pesados
     const { 
-      imagen, 
-      photo, 
-      avatar, 
-      blob_data, 
-      foto,
-      picture,
-      imagen_perfil,
+      imagen, photo, avatar, blob_data, foto, picture, imagen_perfil,
       ...cleanInfo 
     } = userInfo;
-    
     return cleanInfo as UserInfo;
   }
 
   async login(login: string, password: string): Promise<LoginResponse> {
     console.log('🌐 [API] Enviando request de login...');
+    console.log('🌐 [API] URL destino:', process.env.EXPO_PUBLIC_API_URL);
+    
+    // ✅ PROBAR CONECTIVIDAD PRIMERO
+    const connectivityTest = await apiClient.testConnection();
+    if (!connectivityTest) {
+      console.warn('🌐 [API] ⚠️ Problemas de conectividad detectados, pero continuando...');
+    }
+    
     const apiStart = Date.now();
     
     const response = await apiClient.post<LoginResponse>('/auth/login', {
@@ -29,13 +28,18 @@ export class AuthService {
       password,
     }) as LoginResponse;
     
-    console.log(`🌐 [API] Response recibido en ${Date.now() - apiStart}ms`);
+    const apiElapsed = Date.now() - apiStart;
+    console.log(`🌐 [API] Response recibido en ${apiElapsed}ms`);
+    
+    // ✅ ALERTAR SI ES MUY LENTO
+    if (apiElapsed > 5000) {
+      console.warn(`🌐 [API] ⚠️ Request muy lento: ${apiElapsed}ms - Posible problema de red`);
+    }
 
     if (response.access_token) {
       console.log('💾 [STORAGE] Guardando datos con MMKV...');
       const storageStart = Date.now();
       
-      // ✅ GUARDAR con MMKV (sincrónico y rapidísimo)
       StorageUtils.setToken(response.access_token);
       const cleanUserInfo = this.cleanUserInfo(response.user_info);
       StorageUtils.setUserInfo(cleanUserInfo);
@@ -51,7 +55,6 @@ export class AuthService {
 
   async logout(): Promise<void> {
     console.log('🔐 [AUTH] Limpiando storage...');
-    // ✅ LIMPIEZA ultra rápida con MMKV
     StorageUtils.clearToken();
     StorageUtils.clearUserInfo();
   }
@@ -59,7 +62,6 @@ export class AuthService {
   async getCurrentUser(): Promise<StandardResponse<UserInfo>> {
     const response = await apiClient.get('/auth/me') as StandardResponse<UserInfo>;
     
-    // ✅ LIMPIA la respuesta antes de devolverla
     if (response.data) {
       response.data = this.cleanUserInfo(response.data);
     }
@@ -72,12 +74,10 @@ export class AuthService {
   }
 
   async getStoredToken(): Promise<string | null> {
-    // ✅ MMKV sincrónico - instantáneo
     return StorageUtils.getToken();
   }
 
   async getStoredUserInfo(): Promise<UserInfo | null> {
-    // ✅ MMKV sincrónico - instantáneo
     return StorageUtils.getUserInfo();
   }
 }

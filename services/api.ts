@@ -10,7 +10,6 @@ class ApiClient {
   }
 
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    // ✅ MMKV es sincrónico y mucho más rápido
     const token = StorageUtils.getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -23,12 +22,42 @@ class ApiClient {
     return headers;
   }
 
+  // ✅ FUNCIÓN HELPER para crear fetch con timeout agresivo
+  private async fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number = 10000): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      console.log(`🌐 [FETCH] Enviando request a: ${url}`);
+      const startTime = Date.now();
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      
+      const elapsed = Date.now() - startTime;
+      console.log(`🌐 [FETCH] Response recibido en ${elapsed}ms (Status: ${response.status})`);
+      
+      return response;
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error(`🌐 [FETCH] ❌ Timeout después de ${timeoutMs}ms para: ${url}`);
+        throw new Error(`Timeout: Request tardó más de ${timeoutMs / 1000} segundos`);
+      }
+      console.error(`🌐 [FETCH] ❌ Error de red: ${error.message}`);
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
   async get<T>(endpoint: string): Promise<T> {
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
+    const response = await this.fetchWithTimeout(`${this.baseURL}${endpoint}`, {
       method: 'GET',
       headers,
-    });
+    }, 15000); // ✅ 15 segundos timeout
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -39,11 +68,11 @@ class ApiClient {
 
   async post<T>(endpoint: string, data?: any): Promise<T> {
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
+    const response = await this.fetchWithTimeout(`${this.baseURL}${endpoint}`, {
       method: 'POST',
       headers,
       body: data ? JSON.stringify(data) : undefined,
-    });
+    }, 15000); // ✅ 15 segundos timeout
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -60,17 +89,38 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
+    const response = await this.fetchWithTimeout(`${this.baseURL}${endpoint}`, {
       method: 'POST',
       headers,
       body: formData,
-    });
+    }, 30000); // ✅ 30 segundos para uploads
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     return response.json();
+  }
+
+  // ✅ FUNCIÓN DE PRUEBA DE CONECTIVIDAD
+  async testConnection(): Promise<boolean> {
+    try {
+      console.log('🌐 [TEST] Probando conectividad...');
+      const startTime = Date.now();
+      
+      const response = await this.fetchWithTimeout(`${this.baseURL}/health`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      }, 5000);
+      
+      const elapsed = Date.now() - startTime;
+      console.log(`🌐 [TEST] ✅ Conectividad OK en ${elapsed}ms`);
+      
+      return response.ok;
+    } catch (error: any) {
+      console.error(`🌐 [TEST] ❌ Falla de conectividad: ${error.message}`);
+      return false;
+    }
   }
 }
 
