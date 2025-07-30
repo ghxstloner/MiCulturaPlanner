@@ -2,6 +2,7 @@
   "expo": {
     "name": "MiCultura Planner",
     "slug": "micultura-planner",
+    "edgeToEdge": true,
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/ios/AppIcon~ios-marketing.png",
