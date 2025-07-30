@@ -15,15 +15,29 @@ export interface Tripulante {
   estatus: number;
 }
 
-export interface TripulantesResponse extends StandardResponse<Tripulante[]> {}
+export interface TripulantesMetadata {
+  total: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
+  current_page_count: number;
+}
+
+export interface TripulantesResponse extends StandardResponse<Tripulante[]> {
+  metadata?: TripulantesMetadata;
+}
 
 export class TripulantesService {
-  async getTripulantes(): Promise<TripulantesResponse> {
-    return apiClient.get('/tripulantes/');
+  async getTripulantes(offset: number = 0, limit: number = 50): Promise<TripulantesResponse> {
+    return apiClient.get(`/tripulantes/?offset=${offset}&limit=${limit}`);
   }
 
   async getTripulanteById(id: number): Promise<StandardResponse<Tripulante>> {
     return apiClient.get(`/tripulantes/${id}`);
+  }
+
+  async searchTripulantes(query: string): Promise<TripulantesResponse> {
+    return apiClient.get(`/tripulantes/search?q=${encodeURIComponent(query)}`);
   }
 
   async createTripulante(tripulante: Omit<Tripulante, 'id_tripulante'>): Promise<StandardResponse<Tripulante>> {

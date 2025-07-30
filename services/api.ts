@@ -1,6 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StorageUtils } from '../storage/mmkvStorage';
 
-// "http://192.168.2.13:8000/api/v1"
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://micultura.amaxoniaerp.com/api/v1";
 
 class ApiClient {
@@ -11,7 +10,8 @@ class ApiClient {
   }
 
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    const token = await AsyncStorage.getItem('access_token');
+    // ✅ MMKV es sincrónico y mucho más rápido
+    const token = StorageUtils.getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -53,7 +53,7 @@ class ApiClient {
   }
 
   async postFormData<T>(endpoint: string, formData: FormData): Promise<T> {
-    const token = await AsyncStorage.getItem('access_token');
+    const token = StorageUtils.getToken();
     const headers: Record<string, string> = {};
     
     if (token) {

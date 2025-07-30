@@ -1,52 +1,84 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StorageUtils } from '../storage/mmkvStorage';
 import { LoginResponse, StandardResponse, UserInfo } from '../types/api';
 import { apiClient } from './api';
 
-const TOKEN_KEY = 'access_token';
-const USER_KEY = 'user_info';
-
 export class AuthService {
+  // ✅ MÉTODO NUEVO para limpiar campos pesados
+  private cleanUserInfo(userInfo: any): UserInfo {
+    // Elimina cualquier campo que pueda contener BLOBs o datos pesados
+    const { 
+      imagen, 
+      photo, 
+      avatar, 
+      blob_data, 
+      foto,
+      picture,
+      imagen_perfil,
+      ...cleanInfo 
+    } = userInfo;
+    
+    return cleanInfo as UserInfo;
+  }
+
   async login(login: string, password: string): Promise<LoginResponse> {
+    console.log('🌐 [API] Enviando request de login...');
+    const apiStart = Date.now();
+    
     const response = await apiClient.post<LoginResponse>('/auth/login', {
       login,
       password,
-    });
+    }) as LoginResponse;
+    
+    console.log(`🌐 [API] Response recibido en ${Date.now() - apiStart}ms`);
 
     if (response.access_token) {
-      await this.storeToken(response.access_token);
-      await this.storeUserInfo(response.user_info);
+      console.log('💾 [STORAGE] Guardando datos con MMKV...');
+      const storageStart = Date.now();
+      
+      // ✅ GUARDAR con MMKV (sincrónico y rapidísimo)
+      StorageUtils.setToken(response.access_token);
+      const cleanUserInfo = this.cleanUserInfo(response.user_info);
+      StorageUtils.setUserInfo(cleanUserInfo);
+      
+      console.log(`💾 [STORAGE] Datos guardados en ${Date.now() - storageStart}ms`);
     }
 
-    return response;
+    return {
+      ...response,
+      user_info: this.cleanUserInfo(response.user_info)
+    };
   }
 
   async logout(): Promise<void> {
-    await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+    console.log('🔐 [AUTH] Limpiando storage...');
+    // ✅ LIMPIEZA ultra rápida con MMKV
+    StorageUtils.clearToken();
+    StorageUtils.clearUserInfo();
   }
 
   async getCurrentUser(): Promise<StandardResponse<UserInfo>> {
-    return apiClient.get('/auth/me');
+    const response = await apiClient.get('/auth/me') as StandardResponse<UserInfo>;
+    
+    // ✅ LIMPIA la respuesta antes de devolverla
+    if (response.data) {
+      response.data = this.cleanUserInfo(response.data);
+    }
+    
+    return response;
   }
 
   async verifyToken(): Promise<StandardResponse> {
-    return apiClient.post('/auth/verify-token', {});
-  }
-
-  async storeToken(token: string): Promise<void> {
-    await AsyncStorage.setItem(TOKEN_KEY, token);
+    return await apiClient.post('/auth/verify-token', {}) as StandardResponse;
   }
 
   async getStoredToken(): Promise<string | null> {
-    return AsyncStorage.getItem(TOKEN_KEY);
-  }
-
-  async storeUserInfo(userInfo: UserInfo): Promise<void> {
-    await AsyncStorage.setItem(USER_KEY, JSON.stringify(userInfo));
+    // ✅ MMKV sincrónico - instantáneo
+    return StorageUtils.getToken();
   }
 
   async getStoredUserInfo(): Promise<UserInfo | null> {
-    const userInfoStr = await AsyncStorage.getItem(USER_KEY);
-    return userInfoStr ? JSON.parse(userInfoStr) : null;
+    // ✅ MMKV sincrónico - instantáneo
+    return StorageUtils.getUserInfo();
   }
 }
 

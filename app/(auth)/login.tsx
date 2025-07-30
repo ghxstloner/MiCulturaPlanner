@@ -105,9 +105,9 @@ export default function LoginScreen() {
       const success = await loginAction(login, password);
       
       if (success) {
-        await loadEvents();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace('/(app)' as Href);
+        router.replace('/(app)' as Href); // Navega inmediatamente
+        loadEvents(); // Carga en background (sin await)
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert('Error', 'Usuario o contraseña incorrectos');
@@ -124,7 +124,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-      <StatusBar style="dark" backgroundColor={colors.background} />
+      <StatusBar style="dark" />
       
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
