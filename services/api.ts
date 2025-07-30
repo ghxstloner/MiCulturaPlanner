@@ -28,7 +28,6 @@ class ApiClient {
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      console.log(`🌐 [FETCH] Enviando request a: ${url}`);
       const startTime = Date.now();
       
       const response = await fetch(url, {
@@ -36,8 +35,6 @@ class ApiClient {
         signal: controller.signal,
       });
       
-      const elapsed = Date.now() - startTime;
-      console.log(`🌐 [FETCH] Response recibido en ${elapsed}ms (Status: ${response.status})`);
       
       return response;
     } catch (error: any) {
@@ -93,7 +90,7 @@ class ApiClient {
       method: 'POST',
       headers,
       body: formData,
-    }, 30000); // ✅ 30 segundos para uploads
+    }, 60000); // ✅ 30 segundos para uploads
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);

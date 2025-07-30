@@ -233,15 +233,15 @@ export default function EventosScreen() {
           // Si es primera marcación (inicio)
           if (result.marcacion_info?.tipo_marcacion === 'Entrada') {
             const horaInicio = result.marcacion_info.hora || 'hora no especificada';
-            successMessage = `Marcación a la hora de inicio del evento ${horaInicio}.\n\nColaborador: ${nombreCompleto} (${crew_id})`;
+            successMessage = `Marcación a la hora de inicio del evento ${horaInicio}.\n\n${nombreCompleto} (${crew_id})`;
           } 
           // Si es segunda marcación (finalización)
           else if (result.marcacion_info?.tipo_marcacion === 'Salida') {
-            successMessage = `Marcación de finalización del evento.\n\nColaborador: ${nombreCompleto} (${crew_id})`;
+            successMessage = `Marcación de salida del evento.\n\n${nombreCompleto} (${crew_id})`;
           }
           // Marcación general exitosa
           else {
-            successMessage = `¡Asistencia registrada exitosamente!\n\nColaborador: ${nombreCompleto} (${crew_id})`;
+            successMessage = `¡Asistencia registrada exitosamente!\n\n${nombreCompleto} (${crew_id})`;
           }
           
           // Agregar confianza si está disponible

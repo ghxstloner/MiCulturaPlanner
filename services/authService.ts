@@ -12,8 +12,6 @@ export class AuthService {
   }
 
   async login(login: string, password: string): Promise<LoginResponse> {
-    console.log('🌐 [API] Enviando request de login...');
-    console.log('🌐 [API] URL destino:', process.env.EXPO_PUBLIC_API_URL);
     
     // ✅ PROBAR CONECTIVIDAD PRIMERO
     const connectivityTest = await apiClient.testConnection();
@@ -29,7 +27,6 @@ export class AuthService {
     }) as LoginResponse;
     
     const apiElapsed = Date.now() - apiStart;
-    console.log(`🌐 [API] Response recibido en ${apiElapsed}ms`);
     
     // ✅ ALERTAR SI ES MUY LENTO
     if (apiElapsed > 5000) {
@@ -37,14 +34,11 @@ export class AuthService {
     }
 
     if (response.access_token) {
-      console.log('💾 [STORAGE] Guardando datos con MMKV...');
-      const storageStart = Date.now();
       
       StorageUtils.setToken(response.access_token);
       const cleanUserInfo = this.cleanUserInfo(response.user_info);
       StorageUtils.setUserInfo(cleanUserInfo);
       
-      console.log(`💾 [STORAGE] Datos guardados en ${Date.now() - storageStart}ms`);
     }
 
     return {
@@ -54,7 +48,6 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
-    console.log('🔐 [AUTH] Limpiando storage...');
     StorageUtils.clearToken();
     StorageUtils.clearUserInfo();
   }

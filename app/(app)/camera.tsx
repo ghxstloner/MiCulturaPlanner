@@ -8,8 +8,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import Colors from '../../constants/Colors';
-import { useColorScheme } from '../../hooks/useColorScheme';
+import Colors from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function CameraScreen() {
   const insets = useSafeAreaInsets();
@@ -19,7 +19,6 @@ export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [countdown, setCountdown] = useState(0);
   
   // Get callback key from params
   const { onPhotoTakenCallbackKey } = useLocalSearchParams<{ 
@@ -34,7 +33,6 @@ export default function CameraScreen() {
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const countdownAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -73,30 +71,17 @@ export default function CameraScreen() {
     }
   }, [isCapturing, pulseAnim]);
 
-  // Countdown animation
-  useEffect(() => {
-    if (countdown > 0) {
-      Animated.sequence([
-        Animated.timing(countdownAnim, {
-          toValue: 1.5,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(countdownAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [countdown, countdownAnim]);
-
   const toggleCameraFacing = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setFacing(current => (current === 'back' ? 'front' : 'back'));
   }, []);
 
-  const takePictureNow = useCallback(async () => {
+  const takePicture = useCallback(async () => {
+    if (isCapturing) return;
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsCapturing(true);
+    
     if (cameraRef.current) {
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -125,36 +110,9 @@ export default function CameraScreen() {
         console.error("Error taking picture:", error);
         Alert.alert("Error", "No se pudo capturar la foto.");
         setIsCapturing(false);
-        setCountdown(0);
       }
     }
-  }, [cameraRef, onPhotoTaken]);
-
-  const startCountdown = useCallback(() => {
-    setCountdown(3);
-    
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setTimeout(takePictureNow, 200);
-          return 0;
-        }
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        return prev - 1;
-      });
-    }, 1000);
-  }, [takePictureNow]);
-
-  const takePicture = useCallback(async () => {
-    if (isCapturing || countdown > 0) return;
-    
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsCapturing(true);
-    
-    // Start countdown
-    startCountdown();
-  }, [isCapturing, countdown, startCountdown]);
+  }, [isCapturing, onPhotoTaken]);
 
   const handleGoBack = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -247,14 +205,6 @@ export default function CameraScreen() {
         <Text style={styles.instructionText}>
           Coloca tu rostro dentro del marco
         </Text>
-        {countdown > 0 && (
-          <Animated.Text style={[
-            styles.countdownText,
-            { transform: [{ scale: countdownAnim }] }
-          ]}>
-            {countdown}
-          </Animated.Text>
-        )}
       </View>
 
       {/* Bottom controls */}
@@ -269,9 +219,9 @@ export default function CameraScreen() {
                 isCapturing && styles.captureButtonDisabled
               ]} 
               onPress={takePicture}
-              disabled={isCapturing || countdown > 0}
+              disabled={isCapturing}
             >
-              {isCapturing || countdown > 0 ? (
+              {isCapturing ? (
                 <ActivityIndicator color="white" size="large" />
               ) : (
                 <Ionicons name="camera" size={40} color="white" />
@@ -392,15 +342,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-  },
-  countdownText: {
-    color: '#d21033',
-    fontSize: 48,
-    fontWeight: 'bold',
-    marginTop: 20,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 4,
   },
   bottomBar: {
     position: 'absolute',

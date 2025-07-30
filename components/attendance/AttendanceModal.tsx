@@ -5,8 +5,8 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Modal, Portal } from 'react-native-paper';
 
-import Colors from '../../constants/Colors';
-import { useColorScheme } from '../../hooks/useColorScheme';
+import Colors from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 interface AttendanceModalProps {
   visible: boolean;
@@ -173,7 +173,7 @@ export default function AttendanceModal({ visible, message, type, onDismiss }: A
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: colors.greyMedium }]}>
-              MinCultura • República de Panamá
+              MiCultura • República de Panamá
             </Text>
           </View>
         </Animated.View>

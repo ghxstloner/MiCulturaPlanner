@@ -90,7 +90,6 @@ export const useAuthStore = create<AuthState>()(
       },
 
       initAuth: async () => {
-        console.log('🔐 [AUTH] Inicializando auth...');
         set({ loading: true, error: null });
         
         try {

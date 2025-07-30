@@ -28,7 +28,7 @@ export interface TripulantesResponse extends StandardResponse<Tripulante[]> {
 }
 
 export class TripulantesService {
-  async getTripulantes(offset: number = 0, limit: number = 50): Promise<TripulantesResponse> {
+  async getTripulantes(offset: number = 0, limit: number = 15): Promise<TripulantesResponse> {
     return apiClient.get(`/tripulantes/?offset=${offset}&limit=${limit}`);
   }
 

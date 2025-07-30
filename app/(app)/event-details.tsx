@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { ActivityIndicator, Button, Card, Chip } from 'react-native-paper';
+import { ActivityIndicator, Dimensions, Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Button, Card, Chip } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/Colors';
@@ -56,6 +56,106 @@ const ImageModal = ({ visible, imageSource, onClose }: {
   );
 };
 
+// Componente para avatar con iniciales y loading
+const AvatarWithInitials = ({ 
+  imagen, 
+  crew_id, 
+  nombres, 
+  apellidos, 
+  onPress, 
+  size = 50 
+}: { 
+  imagen: string | null; 
+  crew_id: string; 
+  nombres: string; 
+  apellidos: string; 
+  onPress: () => void; 
+  size?: number;
+}) => {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme];
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const getInitials = () => {
+    const firstNameInitial = nombres.charAt(0).toUpperCase();
+    const lastNameInitial = apellidos.charAt(0).toUpperCase();
+    return `${firstNameInitial}${lastNameInitial}`;
+  };
+
+  const getImageSource = () => {
+    if (imagen && imagen.trim() !== '') {
+      return { 
+        uri: `${process.env.EXPO_PUBLIC_IMAGE_URL}/${crew_id}/${imagen}` 
+      };
+    }
+    return null;
+  };
+
+  const imageSource = getImageSource();
+
+  if (!imageSource || error) {
+    // Mostrar iniciales
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        style={[
+          styles.avatarContainer,
+          styles.initialsContainer,
+          { 
+            width: size, 
+            height: size, 
+            borderRadius: size / 2,
+            backgroundColor: colors.primary 
+          }
+        ]}
+        activeOpacity={0.7}
+      >
+        <Text style={[
+          styles.initialsText, 
+          { 
+            fontSize: size * 0.4,
+            color: 'white' 
+          }
+        ]}>
+          {getInitials()}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.avatarContainer, { width: size, height: size, borderRadius: size / 2 }]}
+      activeOpacity={0.7}
+    >
+      {loading && (
+        <View style={[
+          styles.loadingOverlay, 
+          { 
+            width: size, 
+            height: size, 
+            borderRadius: size / 2,
+            backgroundColor: colors.surface 
+          }
+        ]}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      )}
+      <Image
+        source={imageSource}
+        style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}
+        onLoad={() => setLoading(false)}
+        onError={() => {
+          setLoading(false);
+          setError(true);
+        }}
+      />
+    </TouchableOpacity>
+  );
+};
+
 // Componente para mostrar cada colaborador como card
 const ColaboradorCard = ({ colaborador }: { colaborador: any }) => {
   const colorScheme = useColorScheme();
@@ -84,24 +184,20 @@ const ColaboradorCard = ({ colaborador }: { colaborador: any }) => {
       <Card style={[styles.colaboradorCard, { backgroundColor: colors.surface }]}>
         <Card.Content style={styles.colaboradorContent}>
           <View style={styles.colaboradorHeader}>
-            <TouchableOpacity 
-              style={styles.avatarContainer}
-              onPress={() => setImageModalVisible(true)}
-              activeOpacity={0.7}
-            >
-              <Image
-                source={getImageSource()}
-                style={styles.avatar}
-                // ✅ FALLBACK EN CASO DE ERROR
-                onError={(error) => {
-                  console.warn('Error cargando imagen:', error);
-                }}
+            <View style={styles.avatarContainer}>
+              <AvatarWithInitials
+                imagen={colaborador.imagen}
+                crew_id={colaborador.crew_id}
+                nombres={colaborador.nombres}
+                apellidos={colaborador.apellidos}
+                onPress={() => setImageModalVisible(true)}
+                size={50}
               />
               <View style={[
                 styles.statusIndicator,
                 { backgroundColor: colaborador.activo ? colors.success : colors.greyMedium }
               ]} />
-            </TouchableOpacity>
+            </View>
             
             <View style={styles.colaboradorInfo}>
               <Text style={[styles.colaboradorNombre, { color: colors.text }]}>
@@ -1069,5 +1165,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     fontWeight: '500',
+  },
+
+  // ✅ ESTILOS PARA EL AVATAR CON INICIALES Y LOADING
+  initialsContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  initialsText: {
+    fontWeight: 'bold',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
 });

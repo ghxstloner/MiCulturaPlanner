@@ -135,16 +135,13 @@ export const useEventsStore = create<EventsState>()(
       currentFilter: null,
 
       loadEvents: async (filtro?: string, refresh = true) => {
-        console.log('📅 [EVENTS] Cargando eventos...');
         set({ loading: true, error: null });
         
         try {
           const state = get();
           const offset = refresh ? 0 : state.events.length;
-          const startTime = Date.now();
           
           const response = await eventsService.getEvents(false, filtro, offset, 20);
-          console.log(`📅 [EVENTS] Eventos obtenidos en ${Date.now() - startTime}ms`);
           
           if (response.success && response.data) {
             const eventsMapped = response.data.map(mapEventoBackendToFrontend);
@@ -181,7 +178,6 @@ export const useEventsStore = create<EventsState>()(
       },
 
       loadEventDetail: async (eventId: number) => {
-        console.log(`📅 [EVENTS] Cargando detalle del evento ${eventId}...`);
         set({ loading: true, error: null });
         
         try {
@@ -217,7 +213,6 @@ export const useEventsStore = create<EventsState>()(
       },
 
       loadEventPlanification: async (eventId: number) => {
-        console.log(`📅 [EVENTS] Cargando planificación del evento ${eventId}...`);
         set({ loading: true, error: null });
         
         try {
@@ -250,7 +245,6 @@ export const useEventsStore = create<EventsState>()(
 
       markAttendance: async (eventId: number, photoUri: string): Promise<FacialRecognitionResponse> => {
         try {
-          console.log(`📅 [EVENTS] Marcando asistencia para evento ${eventId}...`);
           const result = await eventsService.markAttendance({
             eventId,
             photoUri,

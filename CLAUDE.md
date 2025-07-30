@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a React Native mobile application built with Expo for the Ministry of Culture (MinCultura) attendance tracking system. The app allows employees to mark attendance at events using facial recognition.
+This is a React Native mobile application built with Expo for the Ministry of Culture (MiCultura) attendance tracking system. The app allows employees to mark attendance at events using facial recognition.
 
 ## Tech Stack
 
@@ -79,7 +79,7 @@ Uses Zustand stores for global state:
 - Dark/light mode support via `useColorScheme` hook
 - React Native Paper Material Design 3 themes
 - Custom color scheme in `constants/Colors.ts`
-- Cultural branding with MinCultura assets
+- Cultural branding with MiCultura assets
 
 ### Permissions & Security
 - Camera permission for facial recognition

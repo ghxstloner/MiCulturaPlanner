@@ -22,6 +22,106 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Tripulante, TripulantesMetadata, tripulantesService } from '@/services/tripulantesService';
 import { useAuthStore } from '@/store/authStore';
 
+// Componente para avatar con iniciales
+const AvatarWithInitials = ({ 
+  imagen, 
+  crew_id, 
+  nombres, 
+  apellidos, 
+  onPress, 
+  size = 60 
+}: { 
+  imagen: string | null; 
+  crew_id: string; 
+  nombres: string; 
+  apellidos: string; 
+  onPress: () => void; 
+  size?: number;
+}) => {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme];
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const getInitials = () => {
+    const firstNameInitial = nombres.charAt(0).toUpperCase();
+    const lastNameInitial = apellidos.charAt(0).toUpperCase();
+    return `${firstNameInitial}${lastNameInitial}`;
+  };
+
+  const getImageSource = () => {
+    if (imagen && imagen.trim() !== '') {
+      return { 
+        uri: `${process.env.EXPO_PUBLIC_IMAGE_URL}/${crew_id}/${imagen}` 
+      };
+    }
+    return null;
+  };
+
+  const imageSource = getImageSource();
+
+  if (!imageSource || error) {
+    // Mostrar iniciales
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        style={[
+          styles.avatarContainer,
+          styles.initialsContainer,
+          { 
+            width: size, 
+            height: size, 
+            borderRadius: size / 2,
+            backgroundColor: colors.primary 
+          }
+        ]}
+        activeOpacity={0.7}
+      >
+        <Text style={[
+          styles.initialsText, 
+          { 
+            fontSize: size * 0.4,
+            color: 'white' 
+          }
+        ]}>
+          {getInitials()}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.avatarContainer, { width: size, height: size, borderRadius: size / 2 }]}
+      activeOpacity={0.7}
+    >
+      {loading && (
+        <View style={[
+          styles.loadingOverlay, 
+          { 
+            width: size, 
+            height: size, 
+            borderRadius: size / 2,
+            backgroundColor: colors.surface 
+          }
+        ]}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      )}
+      <Image
+        source={imageSource}
+        style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}
+        onLoad={() => setLoading(false)}
+        onError={() => {
+          setLoading(false);
+          setError(true);
+        }}
+      />
+    </TouchableOpacity>
+  );
+};
+
 // Componente modal para mostrar imagen en grande
 const ImageModal = ({ visible, imageSource, onClose }: { 
   visible: boolean; 
@@ -80,7 +180,7 @@ export default function EmpleadosScreen() {
   const [filteredEmpleados, setFilteredEmpleados] = useState<Tripulante[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [metadata, setMetadata] = useState<TripulantesMetadata | null>(null); // Corregido: usar setMetadata
+  const [metadata, setMetadata] = useState<TripulantesMetadata | null>(null);
   const [selectedImageModal, setSelectedImageModal] = useState<{
     visible: boolean;
     imageSource: any;
@@ -93,7 +193,7 @@ export default function EmpleadosScreen() {
       } else {
         setLoadingMore(true);
       }
-
+  
       const result = await tripulantesService.getTripulantes(offset, 50);
       
       if (result.success && result.data) {
@@ -103,13 +203,13 @@ export default function EmpleadosScreen() {
           setEmpleados(result.data);
         }
         
-        // Corregido: guardar metadata correctamente
+        // Actualizar metadata
         if (result.metadata) {
           setMetadata(result.metadata);
         }
       }
     } catch (error) {
-      console.error('Error loading empleados:', error);
+      console.error('❌ Error loading empleados:', error);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -143,6 +243,7 @@ export default function EmpleadosScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    setSearchQuery(''); // Limpiar búsqueda al refrescar
     await loadEmpleados(0, false);
     setRefreshing(false);
   }, [loadEmpleados]);
@@ -173,18 +274,14 @@ export default function EmpleadosScreen() {
     <Card style={[styles.empleadoCard, { backgroundColor: colors.surface }]}>
       <Card.Content style={styles.empleadoContent}>
         <View style={styles.empleadoHeader}>
-          <TouchableOpacity
+          <AvatarWithInitials
+            imagen={item.imagen}
+            crew_id={item.crew_id}
+            nombres={item.nombres}
+            apellidos={item.apellidos}
             onPress={() => handleImagePress(item.imagen, item.crew_id)}
-            activeOpacity={0.7}
-          >
-            <Image
-              source={getImageSource(item.imagen, item.crew_id)}
-              style={styles.avatar}
-              onError={(error) => {
-                console.warn('Error cargando imagen:', error);
-              }}
-            />
-          </TouchableOpacity>
+            size={60}
+          />
           
           <View style={styles.empleadoInfo}>
             <Text style={[styles.empleadoNombre, { color: colors.text }]}>
@@ -271,17 +368,25 @@ export default function EmpleadosScreen() {
     }
 
     // Counter footer
+    const currentCount = filteredEmpleados.length;
+    const totalCount = metadata?.total || 0;
+    
     return (
       <View style={[styles.footerCounter, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         <Text style={[styles.counterText, { color: colors.greyMedium }]}>
           {searchQuery.trim() !== '' 
-            ? `${filteredEmpleados.length} resultado${filteredEmpleados.length !== 1 ? 's' : ''} de búsqueda`
-            : `${filteredEmpleados.length} de ${metadata?.total || 'cargando...'} empleados`
+            ? `${currentCount} resultado${currentCount !== 1 ? 's' : ''} de búsqueda`
+            : `${currentCount} de ${totalCount} empleados`
           }
         </Text>
         {metadata && metadata.has_more && searchQuery.trim() === '' && (
           <Text style={[styles.moreAvailableText, { color: colors.primary }]}>
             Desliza hacia abajo para cargar más
+          </Text>
+        )}
+        {metadata && !metadata.has_more && searchQuery.trim() === '' && currentCount > 0 && (
+          <Text style={[styles.allLoadedText, { color: colors.greyMedium }]}>
+            Todos los empleados cargados
           </Text>
         )}
       </View>
@@ -432,12 +537,26 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 12,
   },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#f0f0f0',
+  // Estilos para avatar
+  avatarContainer: {
     marginRight: 12,
+    position: 'relative',
+  },
+  avatar: {
+    backgroundColor: '#f0f0f0',
+  },
+  initialsContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  initialsText: {
+    fontWeight: 'bold',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
   empleadoInfo: {
     flex: 1,
@@ -537,6 +656,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   moreAvailableText: {
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  allLoadedText: {
     fontSize: 12,
     marginTop: 4,
     fontStyle: 'italic',

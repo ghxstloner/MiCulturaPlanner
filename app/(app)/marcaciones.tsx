@@ -5,9 +5,9 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Button, SegmentedButtons } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import AttendanceList from '../../components/attendance/AttendanceList';
-import Colors from '../../constants/Colors';
-import { useColorScheme } from '../../hooks/useColorScheme';
+import AttendanceList from '@/components/attendance/AttendanceList';
+import Colors from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function MarcacionesScreen() {
   const colorScheme = useColorScheme();
